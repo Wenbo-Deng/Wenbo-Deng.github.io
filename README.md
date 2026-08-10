@@ -1,84 +1,55 @@
-# 个人求职作品集网站 · Personal Portfolio
+# 邓文博 · 个人作品集网站 / Wenbo Deng · Personal Portfolio
 
-基于纯 HTML/CSS/JS 的静态作品集网站，面向硬件/半导体/嵌入式岗位求职。
+[![Live Website](https://img.shields.io/badge/%F0%9F%8C%90-Online-brightgreen)](https://Wenbo-Deng.github.io/personal-website/)
+[![Built with](https://img.shields.io/badge/Built%20with-HTML%2FCSS%2FJS-blue)]()
 
-## 🚀 快速开始
+电气与电子工程（布里斯托大学 QS #51）求职作品集网站，面向硬件 / 半导体 / 嵌入式方向。
+A job-seeking portfolio site for Hardware / Semiconductor / Embedded roles by an EEE graduate (University of Bristol, QS #51).
 
-直接双击 `index.html` 即可在浏览器中预览。
+## ✨ 功能亮点 / Highlights
 
-## 🌐 部署到 GitHub Pages（免费 · 5分钟）
+- 🎨 深色科技风 UI（GitHub Dark 风格 + 青绿强调色）
+- 📱 完全响应式，手机端可访问
+- 🚀 零构建工具，纯 HTML/CSS/JS
+- 📝 7 篇原创技术博客
+- 🛠 7 个独立项目深度展示
 
-### 方法一：作为用户主页（推荐）
+## 📁 项目一览 / Projects
 
-1. 登录 [GitHub](https://github.com)，点击右上角 **+** → **New repository**
-2. 仓库名填写：**`<你的用户名>.github.io`**（例如 `wenbodeng.github.io`）
-   - 选择 **Public**
-   - 点击 **Create repository**
-3. 在本地打开命令行，进入 `personal-website` 文件夹：
+| 项目 | 技术栈 | 说明 |
+|------|--------|------|
+| [STM32 电能监测仪](project-monitor.html) | STM32F103 · INA226 · I2C | 0.1% 精度，原理图→PCB→固件→测试全流程 |
+| [FreeRTOS 避障机器人](project-robot.html) | ARM M4F · FreeRTOS · NVIC | 裸机 vs RTOS 双实现，互斥量并发控制 |
+| [FPGA 峰值检测](project-fpga.html) | VHDL · Verilog · 时序分析 | 数字逻辑时序实战 |
+| [ECG 心电信号采集](project-ecg.html) | STM32 · AD8232 · SPI | 生物信号采集与处理 |
+| [3D 打印项目](project-3dprint.html) | CAD · 增材制造 | 硬件产品快速原型 |
+| [ETF 量化分析](project-etf.html) | Python · Pandas | 多因子 T+1 预测模型 |
+| [简历页面](resume.html) | — | 时间线 + 技能图谱 |
 
-```bash
-cd personal-website
-git init
-git add .
-git commit -m "Initial portfolio website"
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/<你的用户名>.github.io.git
-git push -u origin main
-```
+## 📝 博客精选 / Blog
 
-4. 等待 1-2 分钟，访问 `https://<你的用户名>.github.io` 即上线 🎉
+- [STM32 驱动 INA226 的 I2C 通信踩坑记录](blog-i2c-debugging.html)
+- [从硬件工程师视角：用 INA226 做 0.1% 精度电能监测仪](blog-ina226-monitor.html)
+- [从 Simulink 仿真到真实 PCB](blog-smps-to-pcb.html)
+- [FreeRTOS 多任务调度实战](blog-freertos-robot.html)
+- [ECG 数据丢失问题复盘](blog-ecg-dataloss.html)
+- [ETF 资金流相关性分析](blog-etf-fundflow.html)
+- [FPGA 峰值检测设计](blog-fpga-peak.html)
 
-### 方法二：作为项目页面
+## 🚀 在线访问 / Live Demo
 
-新建普通仓库（如 `portfolio`），部署完成后访问：
-`https://<你的用户名>.github.io/portfolio/`
+**https://Wenbo-Deng.github.io/personal-website/**
 
-## 📝 发布前需要修改的内容
+## 🛠 技术栈 / Tech Stack
 
-| 文件 | 修改项 |
-|------|--------|
-| `contact.html` | 邮箱、GitHub 链接 |
-| `index.html` | 如有需要调整技能标签 |
-| `assets/` | 放入你的简历 PDF（`resume.pdf`） |
+`HTML5` · `CSS3` · `JavaScript` · `零依赖 / Zero Dependencies`
 
-## 📁 网站结构
+## 📬 联系 / Contact
 
-```
-personal-website/
-├── index.html              # 首页（终端风自我介绍 + 项目精选）
-├── projects.html           # 项目总览
-├── project-fpga.html       # 项目① FPGA 峰值检测器（VHDL + UART + Artix-7）
-├── project-monitor.html    # 项目② STM32 电能监测仪
-├── project-robot.html      # 项目③ FreeRTOS 避障机器人
-├── project-etf.html        # 项目④ ETF 量化分析工具
-├── project-3dprint.html    # 项目⑤ ECG 外壳 3D 打印（Three.js 可交互爆炸视图）
-├── project-ecg.html        # 项目⑥ ECG 活动监测（生物电信号 + AI + 电源 + PCB 设计）
-├── resume.html             # 简历（时间线 + 技能图谱）
-├── blog.html               # 博客列表
-├── blog-ina226-monitor.html  # 博客① INA226 电能监测仪
-├── blog-i2c-debugging.html   # 博客② I2C 调试记录
-├── blog-smps-to-pcb.html     # 博客③ 仿真到 PCB
-├── contact.html            # 联系方式 + CV 下载
-├── css/style.css           # 全局样式（深色科技风）
-├── js/main.js              # 交互脚本
-└── assets/                 # 图片 / 简历 PDF
-```
-
-## 🎨 技术栈
-
-- 纯 HTML5 + CSS3 + JavaScript（零依赖）
-- 深色科技风设计（GitHub Dark 风格 + 青绿强调色）
-- 响应式布局，手机端可正常浏览
-- Intersection Observer 滚动渐入动画
-- 无构建工具，单击即用
-
-## ✨ 后续可选优化
-
-- 绑定自定义域名（在仓库 Settings → Pages 中添加）
-- 添加 Google Analytics 统计访问量
-- 扩展博客内容（复制现有博客 HTML 模板即可）
-- 添加中英双语切换按钮
+- 📧 Email: 1271464738@qq.com
+- 🏠 GitHub: [Wenbo-Deng](https://github.com/Wenbo-Deng)
+- 🎯 求职方向: 硬件工程师 / 半导体设备 / FAE / Embedded
 
 ---
 
-© 2026 Deng Wenbo · Built with ❤️ and hardware engineering spirit
+© 2026 Wenbo Deng · Built with ❤️ and hardware engineering spirit
