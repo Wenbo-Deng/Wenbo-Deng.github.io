@@ -46,7 +46,7 @@ A job-seeking portfolio site for Hardware / Semiconductor / Embedded roles by an
 
 ## 📬 联系 / Contact
 
-- 📧 Email: 1271464738@qq.com
+- 📧 Email: WenboDeng209@gmail.com
 - 🏠 GitHub: [Wenbo-Deng](https://github.com/Wenbo-Deng)
 - 🎯 求职方向: 硬件工程师 / 半导体设备 / FAE / Embedded
 
