@@ -38,7 +38,7 @@ A job-seeking portfolio site for Hardware / Semiconductor / Embedded roles by an
 
 ## 🚀 在线访问 / Live Demo
 
-**https://Wenbo-Deng.github.io/personal-website/**
+**https://Wenbo-Deng.github.io/index.html**
 
 ## 🛠 技术栈 / Tech Stack
 
