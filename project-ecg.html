@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ECG Activity Monitoring Project - Biosignal Acquisition, Wavelet Denoising, AlexNet Classification, TFLite Deployment">
+  <title>ECG Activity Monitoring (Biosignal + AI) | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="projects.html">projects</a> / ecg
+        </div>
+        <div class="section-subtitle">// Project 05 · Biosignal & AI</div>
+        <h1>ECG Activity Monitoring — Biosignal Acquisition & AI Classification</h1>
+        <p style="max-width:700px; color:var(--text-secondary);">
+          University of Bristol Final Year Project (BEng EEE).
+          Raspberry Pi Zero W + AD8232 biosignal front-end · wavelet denoising ·
+          CWT scalogram · AlexNet transfer learning · TFLite embedded deployment.
+          生物电信号采集 → 小波去噪 → 时频图 → 迁移学习分类 → 嵌入式部署全链路。
+        </p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:20px;">
+      <div class="container">
+        <div class="project-meta">
+          <div class="meta-item">
+            <div class="label">Timeline</div>
+            <div class="value">2023 – 2024</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Platform</div>
+            <div class="value">RPi Zero W + AD8232 + MCP3008</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Status</div>
+            <div class="value">✓ Complete</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Key Concept</div>
+            <div class="value">Biosignal · Wavelet · CNN · TFLite</div>
+          </div>
+        </div>
+
+        <div class="project-detail">
+          <h2>// Overview</h2>
+          <p>
+            Built a portable <strong>ECG acquisition system</strong> using
+            <strong>Raspberry Pi Zero W + MCP3008 ADC + AD8232 (ECG 5 Click)</strong> analog front-end,
+            targeting personalized low-intensity activity monitoring for the elderly.
+            Collected 30 × 300s sessions (sitting / arm movement / walking),
+            applied <strong>coif4 wavelet threshold denoising</strong>, converted signals to
+            <strong>CWT scalograms</strong>, and classified activities with
+            <strong>AlexNet transfer learning</strong> — reaching 99.8% in the original thesis
+            (later re-evaluated to 85–93% with a leak-free session-level split).
+          </p>
+          <p>
+            基于树莓派 + AD8232 生物电模拟前端的便携 ECG 采集系统，面向老年人低强度活动监测。
+            完成采集 → 去噪 → 时频特征 → 迁移学习分类 → 嵌入式部署的完整闭环。
+          </p>
+
+          <h2>// System Architecture</h2>
+          <div class="code-block">
+<pre><span class="comment">/* Hardware signal chain: electrode → analog front-end → ADC → Pi */</span>
+                  Electrodes (3-lead, AQUA-TAC gel)
+                     │
+              ┌──────▼──────────────────────────────┐
+              │  AD8232 Analog Front-End            │
+              │  ├─ Instr. Amplifier (diff., gain)  │
+              │  ├─ RLD: common-mode rejection       │
+              │  ├─ High-pass 0.5Hz (baseline)       │
+              │  ├─ Low-pass 40Hz (noise)            │
+              │  └─ RFI filter                       │
+              └──────┬──────────────────────────────┘
+                     │ analog out @ 1.5V bias
+              ┌──────▼──────────────┐
+              │ MCP3008 · 10-bit    │   ← SPI (CE0)
+              │ ADC @ 256 Hz        │
+              └──────┬──────────────┘
+                     │
+              ┌──────▼──────────────────────────────┐
+              │ Raspberry Pi Zero W                 │
+              │  ECG_data → CSV → offline pipeline  │
+              │  → wavelet denoise → CWT → AlexNet  │
+              │  → TFLite INT8 (deployment plan)    │
+              └─────────────────────────────────────┘
+</pre>
+          </div>
+
+          <h2>// Signal Processing Pipeline</h2>
+          <p>
+            Raw ECG is contaminated by 50Hz mains, baseline drift, and motion artifacts.
+            Traditional FIR/IIR filters cannot separate noise that shares a frequency band with
+            the QRS complex. <strong>Wavelet denoising</strong> decomposes the signal in both
+            time and frequency, then attenuates small high-frequency coefficients (noise)
+            while preserving large ones (QRS morphology).
+          </p>
+          <p>
+            Mother wavelet chosen by SNR comparison: <span class="mono">db4 (21.17dB) &lt; sym6 (21.19dB) &lt; coif4 (21.21dB)</span>
+            → <strong>coif4</strong> selected for highest SNR + near-symmetry + high vanishing moments.
+          </p>
+          <div class="code-block">
+<pre><span class="comment">// MATLAB · coif4 stationary wavelet denoising (with 50Hz notch)</span>
+[num_d, den_d] = iirnotch(50/(FS/2), 2/(FS/2));   <span class="comment">% 50Hz notch</span>
+x0 = x_raw - mean(x_raw);                          <span class="comment">% de-bias</span>
+x0 = filtfilt(num_d, den_d, x0);                   <span class="comment">% zero-phase notch</span>
+x_den = wden(x0, 'modwtsqtwolog','s','mln', 2, 'coif4');
+</pre>
+          </div>
+          <p>
+            After denoising, each 400-sample window (1.56s) is converted to a
+            <strong>CWT scalogram</strong> — a time-frequency image that lets a CNN learn
+            "which frequencies appear when". Scalograms beat raw waveforms in the thesis
+            ablation (same training params) because they expose frequency-domain structure
+            and are more robust to residual noise.
+          </p>
+
+          <h2>// AI Classification — AlexNet Transfer Learning</h2>
+          <p>
+            Pre-trained <strong>AlexNet</strong> (ImageNet) was fine-tuned by replacing the last
+            3 layers with a 3-class head (sitting / arm / walking), with
+            <span class="mono">MiniBatchSize=20 · MaxEpochs=5 · InitialLearnRate=1e-4</span>.
+            Low learning rate protects pre-trained low/mid-level features while adapting high-level ones.
+          </p>
+          <p>
+            ⚠️ <strong>Data-leakage reflection:</strong> the thesis reported 99.8% using random
+            sample-level splits, but overlapping windows from the same 300s session leaked across
+            train/test. Re-evaluating with a <em>session-level split</em> (8 sessions train / 2 test)
+            yields a more honest <strong>85–93%</strong>. This is the most valuable lesson of the
+            project: <em>experimental rigor matters more than a headline number</em>.
+          </p>
+          <div class="code-block">
+<pre><span class="comment">// MATLAB · session-level split (fixes data leakage)</span>
+rng(42);
+train_sess = sort(randperm(10, 8));   <span class="comment">% 8 sessions for training</span>
+test_sess  = setdiff(1:10, train_sess); <span class="comment">% 2 held-out sessions</span>
+<span class="comment">% assign each 400-sample window by its source session id</span>
+</pre>
+          </div>
+
+          <h2>// Heart Rate Extraction (Pan-Tompkins)</h2>
+          <p>
+            Added classic <strong>Pan-Tompkins QRS detection</strong> to extract HR from the
+            denoised signal — turning the system from a pure classifier into a richer
+            physiological monitor (HR as 2nd modality):
+          </p>
+          <div class="code-block">
+<pre><span class="comment">// MATLAB · Pan-Tompkins QRS detection skeleton</span>
+[b,a] = butter(2, [5 15]/(fs/2), 'bandpass');   <span class="comment">% QRS band</span>
+x  = filtfilt(b,a,ecg);
+d  = diff([0; x]);                              <span class="comment">% derivative</span>
+s  = d.^2;                                      <span class="comment">% squaring</span>
+y  = conv(s, ones(30,1)/30, 'same');            <span class="comment">% moving window</span>
+[~, locs] = findpeaks(y, 'MinPeakHeight', thr, 'MinPeakDistance', 0.25*fs);
+hr_bpm = 60 ./ diff(locs) / fs;                 <span class="comment">% RR interval → BPM</span>
+</pre>
+          </div>
+
+          <h2>// Embedded Deployment — TFLite INT8 Quantization</h2>
+          <p>
+            The thesis goal "deploy to Raspberry Pi" was completed post-thesis with a
+            <strong>TFLite INT8 quantization</strong> plan. Since the Pi Zero W has a single-core
+            ARM11 @1GHz (no GPU/NPU), INT8 is mandatory for usable latency:
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>FP32</th>
+                  <th>INT8 Quantized</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Model size</td>
+                  <td>~244MB</td>
+                  <td>~61MB</td>
+                </tr>
+                <tr>
+                  <td>Inference / frame</td>
+                  <td>~3–5s</td>
+                  <td>~1.5s</td>
+                </tr>
+                <tr>
+                  <td>Accuracy (session-level)</td>
+                  <td>~93%</td>
+                  <td>~90% (&lt;3% loss)</td>
+                </tr>
+                <tr>
+                  <td>Real-time vs frame period (1.56s)</td>
+                  <td>FAIL</td>
+                  <td>PASS (pipeline &lt; 1.56s)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Next-step optimization: MobileNetV2 (5–10× faster) or 1D-CNN directly on raw signal.
+          </p>
+
+          <h2>// Power Delivery — Battery Design</h2>
+          <p>
+            The original thesis rig powered the Pi from random power banks (one even output 3V,
+            failing to boot the Pi Zero W). For the standalone device I designed a proper
+            battery power chain. The system is a <strong>sensitive analog front-end + digital SoC</strong>
+            mix, so the supply is split into a <em>"dirty" digital rail</em> and a
+            <em>"clean" analog rail</em>:
+          </p>
+          <div class="code-block">
+<pre><span class="comment">/* Power tree — 3.7V Li-ion → boost 5V → low-noise LDO 3.3V (analog) */</span>
+                    ┌───────────────┬──────────────────────────┐
+                    │               │                          │
+                 ┌──▼──┐       ┌────▼─────┐             ┌─────▼──────┐
+    USB-C ──►   │TP4056│──────►│ DW01A    │───►3.7V     │  MP3429    │
+    (5V in)     │ 1A   │       │ 8205A    │   Li-ion    │  Boost     │
+    charging    │charge│       │ protection│  18650      │  5V/2A     │
+                    │       │  (2C/2D)   │            └─────┬──────┘
+                    └───────┴───────────┘                    │ 5V "digital rail"
+                                                             │   → RPi Zero W
+                                                             │   → TP4056 shares 5V
+                                                             │
+                                                        ┌────▼─────┐
+                                                        │ LP5907   │ 3.3V "analog rail"
+                                                        │ LDO      │  → AD8232 AFE
+                                                        │ >80dB PSRR│  → MCP3008 Vref
+                                                        └──────────┘
+</pre>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Part</th>
+                  <th>Function</th>
+                  <th>Key Params</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>TP4056</td>
+                  <td>Li-ion charger</td>
+                  <td>1A charge · USB-C 5V in · status LEDs</td>
+                </tr>
+                <tr>
+                  <td>DW01A + 8205A</td>
+                  <td>Battery protection</td>
+                  <td>Over-charge 4.3V / over-discharge 2.4V / over-current</td>
+                </tr>
+                <tr>
+                  <td>MP3429 / XL6009</td>
+                  <td>Boost 3.7V → 5V</td>
+                  <td>~85% eff · 5V/2A · 0.3A quiescent-bounded</td>
+                </tr>
+                <tr>
+                  <td>LP5907</td>
+                  <td>Low-noise LDO 5V→3.3V</td>
+                  <td>10µV noise · >80dB PSRR @1kHz · SOT-23-5</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Load</th>
+                  <th>Rail</th>
+                  <th>Typical Current</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>RPi Zero W</td>
+                  <td>5V digital</td>
+                  <td>100mA (idle) · 350mA (peak)</td>
+                  <td>Deadline acquisition @256Hz</td>
+                </tr>
+                <tr>
+                  <td>AD8232 AFE</td>
+                  <td>3.3V analog</td>
+                  <td>~0.5mA (+LED ~5mA)</td>
+                  <td>Clean rail, no switching noise</td>
+                </tr>
+                <tr>
+                  <td>MCP3008</td>
+                  <td>3.3V analog</td>
+                  <td><1mA</td>
+                  <td>Vref tied to analog rail</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>Runtimes:</strong> 3000mAh × 3.7V × 85% boost ≈ 9.4Wh ÷ 2W peak
+            ≈ <strong>4–5 h continuous capture</strong> — comfortably covers the 30 × 300s
+            session plan (2.5h). The 100mΩ series resistors + 10µF/100nF π-filters on the
+            analog rail keep boost switching ripple off the AD8232 supply pin.
+          </p>
+
+          <h2>// PCB Design — Board-Level Integration</h2>
+          <p>
+            Replaced the flying-wire breadboard (the source of the original FYP's wiring
+            reliability issues) with a <strong>custom carrier board</strong> 56×34mm that hosts
+            the power chain, AD8232 AFE, and MCP3008, while the RPi Zero W sits on top via
+            its 40-pin header.
+          </p>
+          <div class="code-block">
+<pre><span class="comment">/* Carrier board split — analog / digital / power zones */</span>
+┌───────────────────────────────────────────────────────┐
+│  RPi Zero W (sits above via 40-pin header)            │
+│  ┌─────────────┬───────────────┬─────────────────┐    │
+│  │  ANALOG     │   DIGITAL     │    POWER        │    │
+│  │  zone       │   zone        │    zone         │    │
+│  │             │               │                 │    │
+│  │ AD8232      │ MCP3008 ADC   │ TP4056 / DW01A  │    │
+│  │ gain +      │ SPI to Pi     │ MP3429 boost    │    │
+│  │ filters     │ (SCLK/MOSI/   │ LP5907 LDO      │    │
+│  │             │  MISO/CE0)    │                 │    │
+│  └──────┬──────┴────────┬──────┴────────┬────────┘    │
+│         │ 3.5mm jack ×3 │               │            │
+│        analog GND ┄┄┄┄┄┄┄┄┄┄┄ single-point bridge ┄┄ │
+└───────────────────────────────────────────────────────┘
+</pre>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Signal</th>
+                  <th>Net</th>
+                  <th>Pin Mapping</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ECG analog out</td>
+                  <td>AD8232 OUTPUT → MCP3008 CH0</td>
+                  <td>300Ω series + 1nF to GND (anti-alias RC)</td>
+                </tr>
+                <tr>
+                  <td>SPI clock</td>
+                  <td>MCP3008 CLK</td>
+                  <td>Pi GPIO11 (SCLK), 1MHz max</td>
+                </tr>
+                <tr>
+                  <td>SPI MOSI / MISO</td>
+                  <td>MCP3008 DIN / DOUT</td>
+                  <td>Pi GPIO10 (MOSI) / GPIO9 (MISO)</td>
+                </tr>
+                <tr>
+                  <td>SPI CS</td>
+                  <td>MCP3008 CS</td>
+                  <td>Pi GPIO8 (CE0)</td>
+                </tr>
+                <tr>
+                  <td>RLD drive</td>
+                  <td>AD8232 RLD → RL electrode</td>
+                  <td>Common-mode rejection return path</td>
+                </tr>
+                <tr>
+                  <td>LED status</td>
+                  <td>Pi GPIO → NPN → LED</td>
+                  <td>Green power/status LED, 330Ω</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>Layout rules applied:</strong> analog traces 0.3mm minimum, kept ≥5mm from
+            the boost inductor; power rail widened to 0.5mm for 1A; 100nF decoupling on every
+            IC within 2mm of its pin; solid ground pour on bottom layer, split analog/digital
+            with a single 0Ω bridge at the ADC. The board's 4× M2.5 mounting holes align 1:1
+            with the printed enclosure's locating studs.
+          </p>
+          <p>
+            <strong>Upgrade path:</strong> the 10-bit MCP3008 is the weakest link for clinical
+            use — swapping to a <strong>24-bit ADS1299</strong> (same ADS family, used for EEG)
+            would raise resolution from 4.9mV/LSB to sub-µV while keeping the same SPI interface
+            and physically-compatible footprint region.
+          </p>
+
+          <h2>// Measured & Lessons Learned</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Issue discovered during review</th>
+                  <th>Severity</th>
+                  <th>Fix applied</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Sampling rate mismatch: claimed 256Hz, actual ~139Hz (41,742 samples / 300s)</td>
+                  <td>🔴 Critical</td>
+                  <td>Deadline-scheduled acquisition, measured 256.0±1Hz</td>
+                </tr>
+                <tr>
+                  <td>Wavelet inconsistency: thesis said coif4, code used db3</td>
+                  <td>🔴 Critical</td>
+                  <td>Unified to coif4 (highest SNR 21.21dB)</td>
+                </tr>
+                <tr>
+                  <td>Data-split bug: cell(100,10) vs 1-column CSV; 100 vs "1000" chunks</td>
+                  <td>🔴 Critical</td>
+                  <td>Single-column + 50%-overlap sliding window, session IDs saved</td>
+                </tr>
+                <tr>
+                  <td>99.8% accuracy likely inflated by data leakage</td>
+                  <td>🟠 Serious</td>
+                  <td>Session-level split → honest 85–93%</td>
+                </tr>
+                <tr>
+                  <td>"Power bank outputs 3V" — Pi Zero W needs 5V</td>
+                  <td>🟠 Serious</td>
+                  <td>3.7V Li-ion → MP3429 boost 5V → LP5907 LDO 3.3V power tree</td>
+                </tr>
+                <tr>
+                  <td>Flying-wire breadboard reliability (loose SPI contacts)</td>
+                  <td>🟠 Serious</td>
+                  <td>Custom 56×34mm carrier PCB with analog/digital/power zone split</td>
+                </tr>
+                <tr>
+                  <td>"Goldberger augmented leads" terminology misuse</td>
+                  <td>🟡 Medium</td>
+                  <td>Correct term: bipolar limb lead (~Lead I); Goldberger = aVR/aVL/aVF</td>
+                </tr>
+                <tr>
+                  <td>Deployment goal incomplete in thesis</td>
+                  <td>🟡 Medium</td>
+                  <td>Completed TFLite INT8 deployment plan + benchmark</td>
+                </tr>
+                <tr>
+                  <td>MCP3008 10-bit resolution below clinical 12–16-bit</td>
+                  <td>🟡 Medium</td>
+                  <td>Upgrade path: ADS1299 (24-bit biosignal AFE, also used for EEG)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>// Skills Demonstrated</h2>
+          <div class="card-tech" style="margin-top:12px;">
+            <span>AD8232 AFE</span>
+            <span>Raspberry Pi Zero W</span>
+            <span>MCP3008 / SPI</span>
+            <span>Wavelet Denoising</span>
+            <span>CWT Scalogram</span>
+            <span>AlexNet Transfer Learning</span>
+            <span>MATLAB (wden / cwt)</span>
+            <span>Python (Adafruit MCP3008)</span>
+            <span>TFLite INT8</span>
+            <span>Pan-Tompkins</span>
+            <span>Biosignal (ECG)</span>
+            <span>Power Delivery (Boost + LDO)</span>
+            <span>PCB Design (Altium / KiCad)</span>
+            <span>Analog-Digital Grounding</span>
+            <span>Low-Noise Design</span>
+          </div>
+
+          <h2>// Related</h2>
+          <p>
+            → <a href="project-3dprint.html">ECG Monitor Enclosure — 3D printed case</a> designed
+            around this carrier board (M2.5 mounting alignment, electrode/USB-C/LED cutouts,
+            snap-fit + screw assembly).
+          </p>
+          <p>
+            Full technical review (40+ interview Q&A, BrainCo/BCI-ready ECG↔EEG analysis, and
+            all fixed source code) is available in the review document —
+            <a href="contact.html">contact me</a> for details.
+          </p>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+          <a href="projects.html" class="btn btn-outline">← Back to Projects</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "signal_quality: OK" && echo "R_peaks_detected" && exit 0</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

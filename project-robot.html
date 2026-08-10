@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Autonomous Robot FreeRTOS Project - ARM Cortex-M4F, NVIC, RTOS">
+  <title>Autonomous Robot (FreeRTOS) | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="projects.html">projects</a> / robot
+        </div>
+        <div class="section-subtitle">// Project 02 · RTOS</div>
+        <h1>Autonomous Robot — Bare Metal vs FreeRTOS</h1>
+        <p style="max-width:700px; color:var(--text-secondary);">
+          ARM Cortex-M4F (MSP432P401R) 自主避障机器人。
+          裸机中断驱动 vs FreeRTOS 多任务调度双实现。
+        </p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:20px;">
+      <div class="container">
+        <div class="project-meta">
+          <div class="meta-item">
+            <div class="label">Timeline</div>
+            <div class="value">2023 – 2024</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Platform</div>
+            <div class="value">TI-RSLK + MSP432P401R</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Status</div>
+            <div class="value">✓ Complete</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Key Concept</div>
+            <div class="value">RTOS · Interrupts · Mutex</div>
+          </div>
+        </div>
+
+        <div class="project-detail">
+          <h2>// Overview</h2>
+          <p>
+            Developed an autonomous obstacle-avoidance robot based on
+            <strong>ARM Cortex-M4F (MSP432P401R)</strong> using C.
+            Part 1 implements bare-metal interrupt-driven control with 6 collision switches;
+            Part 2 integrates <strong>FreeRTOS</strong> with 6 concurrent tasks,
+            mutex-protected shared data, and 1ms system tick scheduling.
+          </p>
+          <p>
+            基于 ARM Cortex-M4F 微控制器的自主避障机器人，实现裸机中断与 RTOS 多任务两套架构对比。
+          </p>
+
+          <h2>// System Architecture</h2>
+          <div class="code-block">
+<pre><span class="comment">/* Hardware Map */</span>
+                  MSP432P401R (ARM Cortex-M4F @48MHz)
+┌───────────────────────────────────────────────────────┐
+│  NVIC Interrupts                                      │
+│    └─ Port4 (IRQ 38) → 6 bump switches (falling edge) │
+│  GPIO                                                  │
+│    ├─ P1.1/P1.4  → SW1/SW2 buttons                    │
+│    ├─ P1.0       → Red LED                            │
+│    ├─ P2.0-2.2   → RGB LED                            │
+│    ├─ P1.6/P1.7  → Motor direction                    │
+│    ├─ P2.6/P2.7  → Motor PWM (software)               │
+│    └─ P2.4       → Buzzer (music PWM)                 │
+│  Clock: HFXT 48MHz · SysTick → delay/PWM timing       │
+└───────────────────────────────────────────────────────┘
+</pre>
+          </div>
+
+          <h2>// Bare Metal vs RTOS Comparison</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Aspect</th>
+                  <th>Part 1: Bare Metal</th>
+                  <th>Part 2: FreeRTOS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Program Structure</td>
+                  <td>while(1) + ISR</td>
+                  <td>Tasks + Scheduler</td>
+                </tr>
+                <tr>
+                  <td>Concurrency</td>
+                  <td>ISR preempts main loop</td>
+                  <td>Priority + time-slice switching</td>
+                </tr>
+                <tr>
+                  <td>Responsiveness</td>
+                  <td>Immediate (ISR)</td>
+                  <td>Depends on priority/scheduling</td>
+                </tr>
+                <tr>
+                  <td>Shared Data</td>
+                  <td>volatile keyword</td>
+                  <td>Mutex protection</td>
+                </tr>
+                <tr>
+                  <td>Complexity</td>
+                  <td>Low</td>
+                  <td>Higher (race/deadlock)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Key insight: bare-metal "super-loop + ISR" suits simple systems;
+            RTOS adds task abstraction and deterministic scheduling at the cost
+            of synchronization management.
+          </p>
+
+          <h2>// Technical Highlights</h2>
+
+          <h3 style="font-family:var(--font-mono); color:var(--text-primary);">1. P4->IV Interrupt Vector</h3>
+          <p>
+            Used the P4IV hardware interrupt vector register to resolve multi-pin
+            priority races in the ISR. When multiple switches trigger simultaneously,
+            hardware arbitrates and returns the highest-priority pending pin:
+          </p>
+          <div class="code-block">
+<pre><span class="comment">// P4IV = 2 × (pin + 1) · hardware auto-clears IFG</span>
+status = P4->IV;  <span class="comment">// 0x02=Pin0, 0x06=Pin2, ..., 0x10=Pin7</span>
+<span class="keyword">switch</span>(status) {
+    <span class="keyword">case</span> <span class="number">0x02</span>: <span class="comment">/* Bump1 → action */</span> <span class="keyword">break</span>;
+    <span class="keyword">case</span> <span class="number">0x06</span>: <span class="comment">/* Bump2 → action */</span> <span class="keyword">break</span>;
+    <span class="comment">/* ... up to 0x10 */</span>
+}
+</pre>
+          </div>
+
+          <h3 style="font-family:var(--font-mono); color:var(--text-primary);">2. Mutex-Protected Shared Data</h3>
+          <p>
+            Three tasks concurrently access the global variable <span class="mono">bumpSwitch_status</span>.
+            Protected with FreeRTOS mutex — which provides <strong>priority inheritance</strong>,
+            mitigating priority inversion:
+          </p>
+          <div class="code-block">
+<pre>SemaphoreHandle_t xBumpMutex = xSemaphoreCreateMutex();
+
+<span class="comment">// Writer task</span>
+<span class="keyword">if</span>( xSemaphoreTake(xBumpMutex, portMAX_DELAY) ) {
+    bumpSwitch_status = Bump_Read_Input();
+    xSemaphoreGive(xBumpMutex);
+}
+
+<span class="comment">/* Reader tasks: Take → Read → Give */</span>
+</pre>
+          </div>
+
+          <h3 style="font-family:var(--font-mono); color:var(--text-primary);">3. FreeRTOS Design</h3>
+          <div class="code-block">
+<pre><span class="comment">/* 6 tasks · 5-level priority · 1000Hz tick */</span>
+- taskT (priority 2): master control (suspend/resume via SW2)
+- taskBumpSwitch (priority 1): collision detection
+- taskdcMotor (priority 1): motor control
+- taskMusic (priority 1): buzzer playback
+- taskInput (priority 1): key input
+- taskDisplayOutputLED (priority 1): LED display
+</pre>
+          </div>
+
+          <h2>// Measured & Lessons Learned</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric / Issue</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Interrupt latency measurement</td>
+                  <td>Measured via CCS Profile Clock vs polling</td>
+                </tr>
+                <tr>
+                  <td>P4IV case values bug</td>
+                  <td>Fixed: derived 0x02/0x06/0x08/0x0C/0x0E/0x10 from formula</td>
+                </tr>
+                <tr>
+                  <td>vTaskSuspend wrong arg</td>
+                  <td>Fixed: must pass TaskHandle_t, not function pointer</td>
+                </tr>
+                <tr>
+                  <td>Shared variable race condition</td>
+                  <td>Fixed: wrapped with mutex</td>
+                </tr>
+                <tr>
+                  <td>Motor function empty shell</td>
+                  <td>Completed: direction pins + software PWM loop</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>// Skills Demonstrated</h2>
+          <div class="card-tech" style="margin-top:12px;">
+            <span>C</span>
+            <span>ARM Cortex-M4F</span>
+            <span>NVIC</span>
+            <span>FreeRTOS</span>
+            <span>Mutex / Semaphore</span>
+            <span>Software PWM</span>
+            <span>SysTick</span>
+            <span>Code Composer Studio</span>
+          </div>
+
+          <h2>// Related</h2>
+          <p>
+            Full technical deep-dive available in the project technical review document
+            covering 20+ RTOS interview Q&A — <a href="contact.html">contact me</a> for details.
+          </p>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+          <a href="projects.html" class="btn btn-outline">← Back to Projects</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ task_switch --verbose && echo "No deadlock detected"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

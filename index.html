@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Deng Wenbo - Electrical & Electronic Engineer Portfolio | Embedded Systems, Power Electronics, FPGA">
+  <title>Deng Wenbo | Electrical & Electronic Engineer</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <!-- ========== Header ========== -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ========== Hero / Terminal ========== -->
+    <section class="hero">
+      <div class="container">
+        <div class="terminal-window reveal visible">
+          <div class="terminal-header">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">web-portfolio:~</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="cmd">$ whoami</span></div>
+            <div class="output"><span class="highlight">Deng Wenbo</span> (邓文博) · Electrical & Electronic Engineer</div>
+            <div class="output">BEng University of Bristol · QS World Rank #51</div>
+            <div style="height:12px;"></div>
+            <div><span class="cmd">$ cat specialty.txt</span></div>
+            <div class="output">Embedded Systems &nbsp;|&nbsp; Power Electronics &nbsp;|&nbsp; FPGA & Digital Logic</div>
+            <div class="output">Signal Processing &nbsp;|&nbsp; Motor Control &nbsp;|&nbsp; RTOS</div>
+            <div style="height:12px;"></div>
+            <div><span class="cmd">$ ./target_roles.sh</span></div>
+            <div class="output">Hardware Engineer &nbsp;|&nbsp; Semiconductor Equipment Engineer &nbsp;|&nbsp; FAE</div>
+            <div style="height:12px;"></div>
+            <div><span class="cmd">$ ./show_projects.sh --all</span></div>
+            <div class="output">[OK] 6 projects deployed — FPGA / Power Monitor / RTOS Robot / Biosignal ECG / ETF Quant / 3D Printing</div>
+            <div><span class="cmd">$ <span class="terminal-cursor"></span></span></div>
+          </div>
+        </div>
+
+        <div class="hero-badges">
+          <span class="badge">C</span>
+          <span class="badge">Python</span>
+          <span class="badge">STM32</span>
+          <span class="badge">FreeRTOS</span>
+          <span class="badge">ARM Cortex-M4F</span>
+          <span class="badge">FPGA</span>
+          <span class="badge">VHDL / Verilog</span>
+          <span class="badge">Power Electronics</span>
+          <span class="badge">I2C / SPI / UART</span>
+          <span class="badge">Signal Processing</span>
+          <span class="badge">Pandas</span>
+          <span class="badge">PCB Design</span>
+          <span class="badge">AD8232 AFE</span>
+          <span class="badge">Wavelet Denoising</span>
+          <span class="badge">AlexNet</span>
+          <span class="badge">TFLite</span>
+          <span class="badge">Raspberry Pi</span>
+          <span class="badge">3D Printing</span>
+          <span class="badge">Bambu Lab</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Featured Projects ========== -->
+    <section class="section" id="projects">
+      <div class="container">
+        <div class="section-subtitle">// Featured Projects</div>
+        <h2 class="section-title">Selected Work</h2>
+        <p class="section-desc">
+          Hands-on engineering across the full stack — from PCB layout and embedded firmware to data analysis tools.
+          从原理图到固件再到数据分析，独立完成全流程开发。
+        </p>
+
+        <div class="cards-grid">
+          <!-- Project 1 -->
+          <div class="project-card reveal">
+            <span class="card-tag">🔌 FPGA</span>
+            <h3>FPGA Peak Detector (VHDL + UART)</h3>
+            <p class="card-desc">
+              Peak detection system in VHDL on CMOD A7 (Artix-7, 100MHz) with
+              UART/RS-232 host link, command FSM, two-phase handshake data source,
+              and signed/unsigned modes. Verified on-board with testbenches +
+              bitstream. FPGA 峰值检测系统，完整硬件链路验证。
+            </p>
+            <div class="card-tech">
+              <span>VHDL</span>
+              <span>FPGA</span>
+              <span>CMOD A7</span>
+              <span>UART</span>
+              <span>FSM</span>
+              <span>Vivado</span>
+            </div>
+            <div class="card-links">
+              <a href="project-fpga.html">View Details →</a>
+            </div>
+          </div>
+
+          <!-- Project 2 -->
+          <div class="project-card reveal">
+            <span class="card-tag">★ Featured</span>
+            <h3>STM32 Portable Power Monitor</h3>
+            <p class="card-desc">
+              High-precision voltage/current/power/energy monitor based on STM32F103 + TI INA226 (19-bit ADC).
+              Built from schematic → PCB → firmware → test, achieving <0.3% voltage accuracy with Kelvin 4-wire sensing.
+              完整硬件开发闭环：原理图 → PCB → 固件 → 测试，实测电压精度 <0.3%。
+            </p>
+            <div class="card-tech">
+              <span>STM32F103</span>
+              <span>INA226</span>
+              <span>I2C</span>
+              <span>OLED</span>
+              <span>HAL</span>
+              <span>PCB</span>
+            </div>
+            <div class="card-links">
+              <a href="project-monitor.html">View Details →</a>
+            </div>
+          </div>
+
+          <!-- Project 3 -->
+          <div class="project-card reveal">
+            <span class="card-tag">RTOS</span>
+            <h3>Autonomous Robot (FreeRTOS)</h3>
+            <p class="card-desc">
+              ARM Cortex-M4F (MSP432) obstacle-avoidance robot with 6-task FreeRTOS scheduling.
+              Bare-metal interrupts vs RTOS multi-tasking, mutex-protected shared data, dual-mode motion control.
+              裸机中断 vs RTOS 多任务双实现，互斥量保护共享数据。
+            </p>
+            <div class="card-tech">
+              <span>ARM M4F</span>
+              <span>FreeRTOS</span>
+              <span>NVIC</span>
+              <span>PWM</span>
+              <span>C</span>
+            </div>
+            <div class="card-links">
+              <a href="project-robot.html">View Details →</a>
+            </div>
+          </div>
+
+          <!-- Project 4 -->
+          <div class="project-card reveal">
+            <span class="card-tag">Python</span>
+            <h3>ETF Quantitative Analysis Tool</h3>
+            <p class="card-desc">
+              Multi-factor T+1 trading analysis for semiconductor equipment ETF (159516) using ATR/MA/RSI/Bollinger + fund flows.
+              Pandas-based data pipeline with correlation & statistical testing.  
+              技术面 + 资金面多因子加权，pandas 数据分析与相关性统计检验。
+            </p>
+            <div class="card-tech">
+              <span>Python</span>
+              <span>Pandas</span>
+              <span>Statistics</span>
+              <span>ATR/RSI/MA</span>
+            </div>
+            <div class="card-links">
+              <a href="project-etf.html">View Details →</a>
+            </div>
+          </div>
+
+          <!-- Project 5 -->
+          <div class="project-card reveal">
+            <span class="card-tag">🧩 3D Printing · Enclosure</span>
+            <h3>ECG Monitor Enclosure — 3D Printed Case</h3>
+            <p class="card-desc">
+              FDM-printed portable enclosure for my ECG Activity Monitoring device
+              (RPi Zero W + AD8232 + MCP3008 integrated PCB). Full CAD → slicing →
+              printing → fit-test → iteration on Bambu Lab X1-Carbon, with interactive
+              Three.js exploded-view model.
+              为 ECG 毕设设备设计的 3D 打印便携外壳，两轮迭代装配完成。
+            </p>
+            <div class="card-tech">
+              <span>Bambu X1-C</span>
+              <span>Bambu Studio</span>
+              <span>FDM</span>
+              <span>PETG / TPU</span>
+              <span>Snap-Fit</span>
+              <span>CAD (Fusion 360)</span>
+              <span>Three.js</span>
+            </div>
+            <div class="card-links">
+              <a href="project-3dprint.html">View Details →</a>
+            </div>
+          </div>
+
+          <!-- Project 6 -->
+          <div class="project-card reveal">
+            <span class="card-tag">🧠 Biosignal · Featured</span>
+            <h3>ECG Activity Monitoring (Biosignal + AI)</h3>
+            <p class="card-desc">
+              University of Bristol Final Year Project. Portable ECG with RPi Zero W + AD8232 AFE;
+              coif4 wavelet denoising; CWT scalogram + AlexNet transfer learning for activity
+              classification; TFLite INT8 embedded deployment plan. Full biosignal chain:
+              electrode → analog front-end → ADC → AI. 生物电信号采集到 AI 分类全链路。
+            </p>
+            <div class="card-tech">
+              <span>AD8232</span>
+              <span>Wavelet</span>
+              <span>CWT</span>
+              <span>AlexNet</span>
+              <span>TFLite</span>
+              <span>RPi Zero W</span>
+            </div>
+            <div class="card-links">
+              <a href="project-ecg.html">View Details →</a>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center; margin-top:40px;">
+          <a href="projects.html" class="btn btn-outline">View All Projects</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Quick Stats ========== -->
+    <section class="section" style="padding-top: 0;">
+      <div class="container">
+        <div class="project-meta">
+          <div class="meta-item reveal">
+            <div class="label">Education</div>
+            <div class="value">BEng EEE · Univ. of Bristol</div>
+          </div>
+          <div class="meta-item reveal">
+            <div class="label">Class of</div>
+            <div class="value">2024</div>
+          </div>
+          <div class="meta-item reveal">
+            <div class="label">Location</div>
+            <div class="value">Shenzhen, China</div>
+          </div>
+          <div class="meta-item reveal">
+            <div class="label">Focus</div>
+            <div class="value">Hardware · Embedded · Power</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========== Footer ========== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "Built with passion for engineering" && exit 0</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

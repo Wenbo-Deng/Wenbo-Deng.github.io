@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Technical Blog by Deng Wenbo - Embedded Systems, STM32, I2C, PCB Design">
+  <title>Blog | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / blog
+        </div>
+        <div class="section-subtitle">// Technical Writing</div>
+        <h1>Blog</h1>
+        <p style="max-width:700px; color:var(--text-secondary);">
+          Engineering deep-dives, debugging war stories, and design reviews.
+          技术复盘与踩坑记录。
+        </p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:20px;">
+      <div class="container">
+
+        <!-- Article 1 -->
+        <article class="blog-card reveal">
+          <div class="blog-meta">
+            <span>#01</span>
+            <span>Hardware Design · STM32</span>
+            <span>~5 min read</span>
+          </div>
+          <h3>从硬件工程师视角：用 INA226 做一个 0.1% 精度的电能监测仪</h3>
+          <p>
+            A power engineer's view on building a 0.1% accuracy energy monitor with INA226.
+            Covers chip selection (INA226 vs ACS712), Kelvin sensing, calibration flow,
+            and measured test results.
+          </p>
+          <div class="blog-tags">
+            <span>INA226</span>
+            <span>STM32</span>
+            <span>Calibration</span>
+            <span>Kelvin Sensing</span>
+          </div>
+          <div style="margin-top:16px;">
+            <a href="blog-ina226-monitor.html">Read Full Article →</a>
+          </div>
+        </article>
+
+        <!-- Article 2 -->
+        <article class="blog-card reveal">
+          <div class="blog-meta">
+            <span>#02</span>
+            <span>Embedded · I2C Debugging</span>
+            <span>~6 min read</span>
+          </div>
+          <h3>嵌入式开发实战：STM32 驱动 INA226 的 I2C 通信踩坑记录</h3>
+          <p>
+            Three real I2C debugging war stories: bus lockup from pull-up conflicts,
+            the 7-bit address shift pitfall in HAL, and 1024x averaging to stabilize readings.
+          </p>
+          <div class="blog-tags">
+            <span>I2C</span>
+            <span>Debugging</span>
+            <span>HAL</span>
+            <span>Logic Analyzer</span>
+          </div>
+          <div style="margin-top:16px;">
+            <a href="blog-i2c-debugging.html">Read Full Article →</a>
+          </div>
+        </article>
+
+        <!-- Article 3 -->
+        <article class="blog-card reveal">
+          <div class="blog-meta">
+            <span>#03</span>
+            <span>Design · Simulink → PCB</span>
+            <span>~4 min read</span>
+          </div>
+          <h3>从仿真到 PCB：我的 SMPS 到电能监测仪之旅</h3>
+          <p>
+            From Simulink SMPS simulation to a real PCB — the journey of turning
+            textbook power electronics into a working hardware tool.
+          </p>
+          <div class="blog-tags">
+            <span>Simulink</span>
+            <span>PCB</span>
+            <span>Power Electronics</span>
+          </div>
+          <div style="margin-top:16px;">
+            <a href="blog-smps-to-pcb.html">Read Full Article →</a>
+          </div>
+        </article>
+
+        <!-- Article 4 -->
+        <article class="blog-card reveal">
+          <div class="blog-meta">
+            <span>#04</span>
+            <span>RTOS · FreeRTOS</span>
+            <span>~7 min read</span>
+          </div>
+          <h3>裸机 vs FreeRTOS：我用 6 个任务重写了避障机器人</h3>
+          <p>
+            The same robot written twice — bare-metal "super loop + ISR" vs a 6-task
+            FreeRTOS design. Covers the P4IV interrupt vector register, priority
+            inversion and mutex priority inheritance, and software PWM.
+          </p>
+          <div class="blog-tags">
+            <span>FreeRTOS</span>
+            <span>ARM Cortex-M4F</span>
+            <span>Mutex</span>
+            <span>NVIC</span>
+          </div>
+          <div style="margin-top:16px;">
+            <a href="blog-freertos-robot.html">Read Full Article →</a>
+          </div>
+        </article>
+
+        <!-- Article 5 -->
+        <article class="blog-card reveal">
+          <div class="blog-meta">
+            <span>#05</span>
+            <span>FPGA · VHDL · Digital Logic</span>
+            <span>~7 min read</span>
+          </div>
+          <h3>从 VHDL 到硬件：在 Artix-7 上用状态机实现峰值检测</h3>
+          <p>
+            A complete terminal-driven peak detection system in VHDL on a CMOD A7
+            (Artix-7, 100MHz). Command processor FSM, two-phase handshake,
+            signed/unsigned interpretations, and testbench + on-board verification.
+          </p>
+          <div class="blog-tags">
+            <span>VHDL</span>
+            <span>FPGA</span>
+            <span>UART</span>
+            <span>FSM</span>
+          </div>
+          <div style="margin-top:16px;">
+            <a href="blog-fpga-peak.html">Read Full Article →</a>
+          </div>
+        </article>
+
+        <!-- Article 6 -->
+        <article class="blog-card reveal">
+          <div class="blog-meta">
+            <span>#06</span>
+            <span>Biosignal · AI · ML</span>
+            <span>~8 min read</span>
+          </div>
+          <h3>99.8% 是错的：一次 ECG 机器学习的数据泄漏反思</h3>
+          <p>
+            A final-year ECG project reported 99.8% accuracy — until a re-review
+            revealed data leakage. Session-level splitting drops the number to an
+            honest 85–93%. A lesson in experimental rigor for biosignal AI.
+          </p>
+          <div class="blog-tags">
+            <span>ECG</span>
+            <span>Data Leakage</span>
+            <span>Wavelet</span>
+            <span>Transfer Learning</span>
+          </div>
+          <div style="margin-top:16px;">
+            <a href="blog-ecg-dataloss.html">Read Full Article →</a>
+          </div>
+        </article>
+
+        <!-- Article 7 -->
+        <article class="blog-card reveal">
+          <div class="blog-meta">
+            <span>#07</span>
+            <span>Quant · Python · Statistics</span>
+            <span>~6 min read</span>
+          </div>
+          <h3>散户是"聪明钱"吗：ETF 资金流与次日收益的 34 天统计验证</h3>
+          <p>
+            Testing the "follow the smart money" narrative with 34 trading days of
+            ETF fund-flow data. r = 0.2718 with p = 0.11 — a weak signal, a powerful
+            reminder about sample size and control groups.
+          </p>
+          <div class="blog-tags">
+            <span>Python</span>
+            <span>Pandas</span>
+            <span>Correlation</span>
+            <span>Multi-factor</span>
+          </div>
+          <div style="margin-top:16px;">
+            <a href="blog-etf-fundflow.html">Read Full Article →</a>
+          </div>
+        </article>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ git log --oneline | wc -l && echo "7 posts online"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

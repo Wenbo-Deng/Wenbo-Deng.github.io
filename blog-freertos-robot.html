@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Bare Metal vs FreeRTOS - Autonomous Robot Task Scheduling, Mutex and Interrupt Design">
+  <title>裸机 vs FreeRTOS：我用 6 个任务重写了避障机器人 | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / freertos-robot
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>裸机 vs FreeRTOS：我用 6 个任务重写了避障机器人</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>RTOS · Embedded</span> · <span>~7 min read</span>
+          </div>
+
+          <blockquote>
+            <p>同一个机器人，我先用裸机"while(1) + 中断"写完，再用 FreeRTOS 的 6 个任务重写了一遍。这篇记录两种架构的取舍、Mutex 优先级反转的坑，以及硬件中断向量寄存器（P4IV）的正确用法。</p>
+          </blockquote>
+
+          <h2>为什么要把同一个项目写两遍？</h2>
+          <p>
+            基于 <strong>ARM Cortex-M4F (MSP432P401R, 48MHz)</strong> 的自主避障机器人：6 个碰撞开关、
+            2 路电机软件 PWM、蜂鸣器音乐、RGB LED 状态显示。Part 1 用裸机中断驱动实现；
+            Part 2 换成 <strong>FreeRTOS</strong> 6 任务并发调度。
+          </p>
+          <p>
+            写两遍不是重复劳动——它是理解"调度器解决了什么、又引入了什么"最直接的方式：
+            裸机的简单直接 vs RTOS 的可扩展性，本质上是<strong>复杂度管理</strong>的取舍。
+          </p>
+
+          <h2>Part 1：裸机架构 — 超级循环 + 中断</h2>
+          <div class="code-block">
+<pre><span class="comment">/* 裸机骨架：main loop 做非实时任务，ISR 抢占处理碰撞 */</span>
+<span class="keyword">while</span> (<span class="number">1</span>) {
+    Check_Buttons();      <span class="comment">// 慢速轮询：按钮、音乐、LED</span>
+    Update_Motor();       <span class="comment">// 软件 PWM 占空比更新</span>
+    Play_Music_Step();    <span class="comment">// 蜂鸣器节拍推进</span>
+}
+
+<span class="comment">// Port4 下降沿中断：6 个碰撞开关共用一条 IRQ38</span>
+<span class="keyword">void</span> PORT4_IRQHandler(<span class="keyword">void</span>) {
+    status = P4->IV;      <span class="comment">// 硬件自动仲裁 + 清中断标志</span>
+    <span class="keyword">switch</span>(status) {
+        <span class="keyword">case</span> <span class="number">0x02</span>: Bump1_Action(); <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="number">0x06</span>: Bump2_Action(); <span class="keyword">break</span>;
+        <span class="comment">/* ... 0x08 / 0x0C / 0x0E / 0x10 → Bump3..6 */</span>
+    }
+}
+</pre>
+          </div>
+
+          <h3>坑 1：P4IV 的中断向量值不是"猜"出来的</h3>
+          <p>
+            初版代码里我给 <span class="mono">P4->IV</span> 写错了 case 值——因为想当然认为
+            6 个引脚对应 0x01..0x06。查 MSP432 手册才发现规律：
+            <strong>P4IV = 2 × (pin + 1)</strong>，即 Pin0→0x02、Pin1→0x04、Pin2→0x06 … Pin7→0x10。
+          </p>
+          <p>
+            <span class="mono">P4->IV</span> 的价值在于：多个开关<strong>同时触发</strong>时,
+            硬件自动返回最高优先级待处理引脚，并自动清除对应的 IFG 标志——比在 ISR 里逐个读
+            PFIN 判断高效且不会漏事件。
+          </p>
+
+          <h3>裸机的局限：实时性只是"看起来"实时</h3>
+          <p>
+            裸机里碰撞响应是 <strong>ISR 立即抢占</strong>，延迟确实低。但当系统膨胀到
+            "避障 + 音乐 + 按键 + LED + 电机 + 显示"多路并发时，main loop 越来越长，
+            每个功能的响应时间开始互相依赖——<strong>可预测性丢失</strong>是裸机最大的隐性成本。
+          </p>
+
+          <h2>Part 2：FreeRTOS 架构 — 6 任务并发调度</h2>
+          <div class="code-block">
+<pre><span class="comment">/* 6 个任务 · 5 级优先级 · 1ms tick（1000Hz） */</span>
+- taskT             (prio 2): 总控，SW2 挂起/恢复所有任务
+- taskBumpSwitch    (prio 1): 碰撞检测（中断置 flag → 任务响应）
+- taskdcMotor       (prio 1): 电机方向 + 软件 PWM
+- taskMusic         (prio 1): 蜂鸣器音乐播放
+- taskInput         (prio 1): 按键输入
+- taskDisplayOutputLED (prio 1): RGB LED 状态显示
+</pre>
+          </div>
+
+          <p>
+            碰撞开关的中断里不再做业务逻辑，只负责<strong>唤醒任务</strong>
+            （<span class="mono">xSemaphoreGiveFromISR</span>），实际的避障决策交给
+            <span class="mono">taskBumpSwitch</span>。中断变短、任务职责单一，这就是
+            RTOS 带来的<strong>关注点分离</strong>。
+          </p>
+
+          <h3>坑 2：优先级反转与 Mutex 的优先级继承</h3>
+          <p>
+            三个任务（taskBumpSwitch / taskdcMotor / taskDisplayOutputLED）都要访问全局状态
+            <span class="mono">bumpSwitch_status</span>。初版用二进制信号量保护，结果出现：
+            低优先级任务持有锁 → 高优先级任务被阻塞 → 中优先级任务插队 → 高优先级任务饿死。
+          </p>
+          <div class="code-block">
+<pre><span class="comment">// 错误：BinSemaphore 只保证互斥，不解决优先级反转</span>
+SemaphoreHandle_t xBumpMutex = xSemaphoreCreateMutex();  <span class="comment">// 用 Mutex！</span>
+
+<span class="keyword">if</span>( xSemaphoreTake(xBumpMutex, portMAX_DELAY) ) {
+    bumpSwitch_status = Bump_Read_Input();
+    xSemaphoreGive(xBumpMutex);
+}
+<span class="comment">/* Mutex 的优先级继承：持锁期间临时抬升持锁者优先级，
+   阻断中优先级任务插队 → 收敛为可控的等待时间 */</span>
+</pre>
+          </div>
+          <p>
+            <strong>Mutex（互斥量）与二进制信号量的关键区别正是"优先级继承"</strong>：
+            当高优先级任务因等锁被阻塞时，锁持有者的优先级被临时提升到与等待者相同，
+            从而不被中优先级任务抢占。这是 FreeRTOS Mutex 内置的行为，
+            也是面试最常被追问的 RTOS 概念之一。
+          </p>
+
+          <h3>坑 3：vTaskSuspend 传错参数</h3>
+          <p>
+            初版代码写的是 <span class="mono">vTaskSuspend(taskMusic)</span>——传了函数指针，
+            编译期完全不报错，运行时任你怎么按 SW2 任务纹丝不动。
+            <strong>正确做法是传 TaskHandle_t</strong>，创建任务时保存句柄：
+          </p>
+          <div class="code-block">
+<pre>TaskHandle_t xTaskMusicHandle;
+
+xTaskCreate(TaskMusic, <span class="string">"Music"</span>, stackSize, NULL, <span class="number">1</span>, &xTaskMusicHandle);
+<span class="comment">// ...</span>
+vTaskSuspend(xTaskMusicHandle);   <span class="comment">// 正确：句柄，不是函数名</span>
+</pre>
+          </div>
+
+          <h2>裸机 vs RTOS：一张决策表</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Aspect</th>
+                  <th>Part 1: Bare Metal</th>
+                  <th>Part 2: FreeRTOS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Program Structure</td>
+                  <td>while(1) + ISR</td>
+                  <td>Tasks + Scheduler</td>
+                </tr>
+                <tr>
+                  <td>Concurrency</td>
+                  <td>ISR preempts main loop</td>
+                  <td>Priority + time-slice switching</td>
+                </tr>
+                <tr>
+                  <td>Responsiveness</td>
+                  <td>Immediate (ISR)</td>
+                  <td>Depends on priority/scheduling</td>
+                </tr>
+                <tr>
+                  <td>Shared Data</td>
+                  <td>volatile keyword</td>
+                  <td>Mutex protection + priority inheritance</td>
+                </tr>
+                <tr>
+                  <td>Complexity</td>
+                  <td>Low</td>
+                  <td>Higher (race / deadlock / inversion)</td>
+                </tr>
+                <tr>
+                  <td>Scalability</td>
+                  <td>Degrades as features grow</td>
+                  <td>Add tasks without hobbling main loop</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            核心结论：<strong>系统功能少 → 裸机更优（代码可读、延迟确定）；并发功能多 → RTOS 的
+            任务抽象和确定性调度收益远大于同步成本。</strong> 对硬件工程师而言，两种都该会，
+            而判断"什么时候该上 RTOS"本身就是工程经验的一部分。
+          </p>
+
+          <h2>经验总结</h2>
+          <ol>
+            <li><strong>P4IV 之类的硬件向量寄存器一定查手册</strong>，别靠猜——它是"多引脚共享中断"的标准解法</li>
+            <li><strong>共享数据用 Mutex 而非常规信号量</strong>，优先级继承能规避反转导致的饿死</li>
+            <li><strong>RTOS 里中断只负责"唤醒"，业务放任务里</strong>——ISR 越短越不容易丢事件</li>
+            <li><strong>传 TaskHandle_t 而不是函数名</strong>，这类错误静默发生，调试周期极长</li>
+            <li><strong>选择架构时先数"并发源"</strong>：超过 3 个实时事件源，就该考虑 RTOS</li>
+          </ol>
+
+          <h2>附：调试片段 — 测量中断延迟</h2>
+          <div class="code-block">
+<pre><span class="comment">/* CCS Profile Clock 实测中断响应 vs 轮询响应 */</span>
+<span class="keyword">volatile uint32_t</span> t_isr, t_poll;
+
+<span class="comment">// ISR 入口打时间戳</span>
+<span class="keyword">void</span> PORT4_IRQHandler(<span class="keyword">void</span>) {
+    t_isr = MAP_Timer32_getValue(TIMER32_0_BASE);
+    <span class="comment">/* ... */</span>
+}
+<span class="comment">// 对比：主循环里轮询 bumpSwitch_status 的时间差</span>
+</pre>
+          </div>
+          <p>
+            实测中断响应在微秒级、轮询路径依赖 main loop 周期——量化结果直接支持了
+            "关键事件必须走中断/高优先级任务"的设计决策。
+          </p>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ task_switch --verbose && echo "No deadlock detected"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

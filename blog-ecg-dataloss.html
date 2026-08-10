@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ECG Machine Learning Data Leakage - 99.8% to 85%, Session-Level Split, Biosignal AI">
+  <title>99.8% 是错的：一次 ECG 机器学习的数据泄漏反思 | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / ecg-dataloss
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>99.8% 是错的：一次 ECG 机器学习的数据泄漏反思</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>Biosignal · AI · Signal Processing</span> · <span>~8 min read</span>
+          </div>
+
+          <blockquote>
+            <p>我的毕业设计用 AlexNet 迁移学习对 ECG 活动分类，论文报告准确率 99.8%。复查时发现这是数据泄漏造成的假象——用会话级划分重新评估后，真实成绩是 85–93%。这篇记录泄漏的机制、修复方法，以及这个教训如何让"实验严谨性"变成了我最值钱的工程经验。</p>
+          </blockquote>
+
+          <h2>项目背景：一套便携 ECG 活动监测系统</h2>
+          <p>
+            树莓派 Zero W + AD8232 模拟前端 + MCP3008 (10-bit SPI ADC) 采集 ECG，
+            目标识别三类<strong>低强度活动</strong>：坐姿、上肢运动、步行。
+            采集 30 段 300 秒数据 → coif4 小波去噪 → CWT 生成时频图（scalogram）
+            → AlexNet 迁移学习分类。
+          </p>
+          <p>
+            处理链路里最容易被忽视的环节，不是采集也不是模型——而是
+            <strong>训练/测试数据切分的正确性</strong>。
+          </p>
+
+          <h2>信号链路：从电极到特征图</h2>
+          <div class="code-block">
+<pre><span class="comment">/* 电极 → 模拟前端 → ADC → 小波去噪 → 时频图 → CNN */</span>
+Electrodes (3-lead)
+   → AD8232 AFE (差分放大 + RLD + 0.5~40Hz 带通)
+   → MCP3008 (10-bit @256Hz, SPI)
+   → coif4 小波阈值去噪 (SNR 21.21dB, 50Hz 陷波)
+   → CWT scalogram (400 样本窗口 = 1.56s)
+   → AlexNet 迁移学习 (3 类活动)
+</pre>
+          </div>
+
+          <h3>为什么是小波而不是 FIR/IIR？</h3>
+          <p>
+            肌电噪声与 QRS 波群<strong>频带重叠</strong>，固定滤波器会把信号一起削掉。
+            小波在时频两域联合定位：噪声是高频小系数，用阈值函数衰减；
+            大系数（QRS 形态）原样保留。论文对比 db4/sym6/coif4 的
+            <span class="mono">SNR = 21.17 / 21.19 / 21.21 dB</span>，coif4 最高，
+            且其近似对称 + 高消失矩能更好保留 ECG 尖锐形态。
+          </p>
+
+          <h3>为什么变成图片再分类？</h3>
+          <p>
+            AlexNet 是 CNN，擅长图像。把一维信号变成二维<strong>时频图</strong>，
+            让网络学习"哪些频率在什么时间出现"——坐姿/运动/步行的 ECG 时频特征差异明显。
+            同参数下 scalogram 分类精度优于直接喂波形，因为时频域里噪声更易分离。
+          </p>
+
+          <h2>翻车现场：99.8% 是怎么"造假"的？</h2>
+          <p>
+            论文最初用 <span class="mono">splitEachLabel(..., 'randomized')</span>
+            <strong>在样本级随机切分</strong>。看起来天经地义，实际上埋了雷：
+          </p>
+          <ol>
+            <li>300s 连续信号切成 400 点（1.56s）窗口，<strong>相邻窗口共享信息</strong></li>
+            <li>修正版切分甚至用了 <strong>50% 重叠</strong>——相邻窗口直接共享一半数据</li>
+            <li>样本级随机划分 → 同一段 300s 的材料<strong>必然同时出现在训练和测试集</strong></li>
+          </ol>
+          <p>
+            结果是模型"背答案"：测试集里满是训练时见过的波形片段，
+            <strong>99.8% 的高分是对记忆力的奖励，不是对泛化能力的衡量</strong>。
+          </p>
+
+          <h2>修复：会话级划分（Session-Level Split）</h2>
+          <p>
+            正确做法是<strong>按会话（session）划分</strong>：10 段 300s 数据，
+            8 段训练、2 段测试，同一段材料的全部窗口只属于一侧——
+            训练和测试在时间上彻底无重叠。
+          </p>
+          <div class="code-block">
+<pre><span class="comment">// MATLAB · 会话级划分（修复数据泄漏）</span>
+rng(42);
+train_sess = sort(randperm(10, 8));    <span class="comment">% 8 段训练</span>
+test_sess  = setdiff(1:10, train_sess); <span class="comment">% 2 段测试</span>
+<span class="comment">// 每个 400 样本窗口按其来源会话 ID 归类，绝不错位</span>
+</pre>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>划分方式</th>
+                  <th>准确率</th>
+                  <th>含义</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>样本级随机划分（原论文）</td>
+                  <td style="color:var(--warning);">99.8%</td>
+                  <td>训练/测试时间上重叠，虚高</td>
+                </tr>
+                <tr>
+                  <td>会话级划分（修复后）</td>
+                  <td style="color:var(--accent);">85–93%</td>
+                  <td>真正的泛化能力</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>85–93% 依然是不错的成绩</strong>，而且它经得起质疑——
+            这才是简历上应该出现的数字。主动承认并修正，比守着虚假的 99.8% 有价值得多。
+          </p>
+
+          <h2>这次教训的 3 个工程启示</h2>
+
+          <h3>启示 1：泄漏不只发生在"切分"</h3>
+          <p>
+            复查时还发现一串连锁 bug：声称 256Hz 实际 ~139Hz（<span class="mono">time.sleep</span> 不精确）、
+            论文说 coif4 代码用 db3、CSV 格式与切分代码不匹配。
+            <strong>信号处理项目里，"报告的数字"与"实际代码"可能根本不是一回事</strong>——
+            用数据反推验证（样本数 ÷ 时长 = 真实采样率）比相信注释可靠得多。
+          </p>
+
+          <h3>启示 2：时间序列的划分红线</h3>
+          <div class="code-block">
+<pre><span class="comment">// 时间序列 / 生理信号 ML 的铁律：</span>
+1. 相邻窗口天然相关 → 不重叠仍不独立
+2. 按"个体 / 会话 / 试验"分组划分，而非按样本
+3. 报告时注明划分粒度 —— 面试官一追问就知道你懂不懂
+</pre>
+          </div>
+
+          <h3>启示 3：诚实面对数字，把教训变成卖点</h3>
+          <p>
+            面试官最怕听到"准确率 99%+"却讲不清泛化边界。主动说：
+            <em>"我的模型从 99.8% 修正到 85–93%，因为发现了数据泄漏，
+            改用会话级划分重新评估"</em>——这展示的批判性思维和实验严谨性，
+            是初学者最稀缺、企业最看重的特质。
+          </p>
+
+          <h2>后续：从学术验证走向嵌入式部署</h2>
+          <p>
+            论文目标"部署到树莓派"在毕业后补齐：用 <strong>TFLite INT8 量化</strong>
+            把 244MB 模型压到 ~61MB，推理时间从 3–5s 降到 ~1.5s，
+            在 1.56s 的帧周期内首次达到<strong>准实时</strong>。
+            还加了 Pan-Tompkins 提取心率，让系统从"分类器"升级为"生理监测仪"。
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>FP32</th>
+                  <th>INT8 Quantized</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Model size</td>
+                  <td>~244MB</td>
+                  <td>~61MB</td>
+                </tr>
+                <tr>
+                  <td>Inference / frame</td>
+                  <td>~3–5s</td>
+                  <td>~1.5s</td>
+                </tr>
+                <tr>
+                  <td>Accuracy (session-level)</td>
+                  <td>~93%</td>
+                  <td>~90% (<3% loss)</td>
+                </tr>
+                <tr>
+                  <td>Real-time vs frame period (1.56s)</td>
+                  <td style="color:var(--warning);">FAIL</td>
+                  <td style="color:var(--accent);">PASS</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>经验总结</h2>
+          <ol>
+            <li><strong>时间序列/生理信号的 train/test split 必须按会话或个体</strong>——样本级划分几乎必然泄漏</li>
+            <li><strong>用数据反推验证声明</strong>：采样率、波形、代码与论文不一致都能被算出来</li>
+            <li><strong>迁移学习 + 小波去噪是生物电信号小样本问题的黄金组合</strong></li>
+            <li><strong>INT8 量化的精度损失 <3%，换来 4× 体积缩小和 2–3× 加速</strong>——嵌入式 AI 的默认选择</li>
+            <li><strong>诚实是最强的面试策略</strong>：敢于讲"我错在哪"比炫耀"我做得多好"更难、也更值钱</li>
+          </ol>
+
+          <h2>附：小波去噪与 QRS 检测骨架</h2>
+          <div class="code-block">
+<pre><span class="comment">// MATLAB · coif4 平稳小波去噪 + 50Hz 陷波</span>
+[num_d, den_d] = iirnotch(50/(FS/2), 2/(FS/2));
+x0 = x_raw - mean(x_raw);
+x0 = filtfilt(num_d, den_d, x0);
+x_den = wden(x0, 'modwtsqtwolog', 's', 'mln', 2, 'coif4');
+
+<span class="comment">// MATLAB · Pan-Tompkins QRS 检测骨架</span>
+[b,a] = butter(2, [5 15]/(fs/2), 'bandpass');
+x = filtfilt(b,a,ecg); d = diff([0; x]);
+s = d.^2; y = conv(s, ones(30,1)/30, 'same');
+[~, locs] = findpeaks(y, 'MinPeakHeight', thr, 'MinPeakDistance', 0.25*fs);
+hr_bpm = 60 ./ diff(locs) / fs;
+</pre>
+          </div>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "signal_quality: OK" && echo "split: session-level ✓" && exit 0</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

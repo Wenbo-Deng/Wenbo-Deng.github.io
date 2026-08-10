@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="STM32 INA226 I2C Debugging War Stories - Technical Blog">
+  <title>STM32 驱动 INA226 的 I2C 通信踩坑记录 | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / i2c-debugging
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>嵌入式开发实战：STM32 驱动 INA226 的 I2C 通信踩坑记录</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>Embedded · Debugging</span> · <span>~6 min read</span>
+          </div>
+
+          <blockquote>
+            <p>在电能监测仪项目中，与 INA226 的 I2C 通信让我踩了不少坑。这篇记录解决问题的过程，希望帮后来者少走弯路。</p>
+          </blockquote>
+
+          <h2>遇到的三个问题</h2>
+
+          <h3>问题1：I2C 总线被锁死</h3>
+          <p><strong>现象</strong>：上电后读 INA226 返回值全是 0x0000，OLED 同时无响应。</p>
+          <p><strong>排查过程</strong>：</p>
+          <ol>
+            <li>先测 OLED 地址 0x3C——正常</li>
+            <li>再测 INA226 地址 0x40——无 ACK</li>
+            <li>用逻辑分析仪看波形，发现 SDA 一直为低</li>
+          </ol>
+          <p>
+            <strong>根因</strong>：INA226 模块板载的上拉电阻与 STM32 内部上拉冲突，导致总线被拉死。
+          </p>
+          <p>
+            <strong>解决</strong>：把 STM32 对应引脚的内部上拉关闭（改开漏 + 外部上拉），
+            或移除模块板上一个上拉电阻。
+          </p>
+
+          <h3>问题2：Device ID 读不到</h3>
+          <p><strong>现象</strong>：读 REG_DEVICE_ID (0xFF) 返回 0x0000。</p>
+          <p>
+            <strong>根因</strong>：我犯了个低级错误——<strong>忘记左移 1 位</strong>。
+            INA226 的 7-bit 地址是 0x40，但在 HAL 库中 I2C 地址需要左移一位
+            （<span class="mono">0x40 << 1</span>），因为 HAL 内部会自动处理 R/W 位。
+          </p>
+          <div class="code-block">
+<pre><span class="comment">// 错误</span>
+<span class="keyword">#define</span> INA226_ADDR <span class="number">0x40</span>
+<span class="comment">// 正确</span>
+<span class="keyword">#define</span> INA226_ADDR (<span class="number">0x40</span> << <span class="number">1</span>)
+</pre>
+          </div>
+
+          <h3>问题3：电压值跳动 ±50mV</h3>
+          <p><strong>现象</strong>：读数在 4.95V ~ 5.05V 之间波动。</p>
+          <p><strong>分析</strong>：</p>
+          <ol>
+            <li>INA226 默认平均次数为 1，对噪声敏感</li>
+            <li>采样线过长，引入了干扰</li>
+          </ol>
+          <p><strong>解决</strong>：</p>
+          <ol>
+            <li>将 CONFIG 寄存器的平均次数设为 1024 次</li>
+            <li>把采样线尽量缩短、并联 0.1uF 滤波电容</li>
+          </ol>
+          <div class="code-block">
+<pre><span class="comment">/* 1024次平均, 连续双通道采样, 5.12ms */</span>
+<span class="keyword">#define</span> INA226_CONFIG_DEFAULT <span class="number">0x07FF</span>
+INA226_WriteReg(REG_CONFIG, INA226_CONFIG_DEFAULT);
+</pre>
+          </div>
+          <p>平均后电压波动减小到 ±1mV 以内。</p>
+
+          <h2>经验总结</h2>
+          <ol>
+            <li><strong>地址移位</strong>：任何 I2C 从机接入 HAL 库，都要记得把 7-bit 地址左移 1 位</li>
+            <li><strong>上拉电阻冲突</strong>：模块自带上拉的场景，注意与 MCU 内部上拉的匹配</li>
+            <li><strong>片内平均滤波</strong>：24-bit 测量芯片通常内置平均功能，善用可以极大提升稳定性</li>
+            <li><strong>排查工具</strong>：逻辑分析仪（¥25 的 8 通道版就够用）是调试 I2C 的神器</li>
+          </ol>
+
+          <h2>附：调试代码片段</h2>
+          <div class="code-block">
+<pre><span class="comment">/* 探测I2C设备 */</span>
+<span class="keyword">uint8_t</span> buf;
+HAL_I2C_Mem_Read(&hi2c1, (<span class="number">0x40</span> << <span class="number">1</span>), <span class="number">0xFF</span>,
+                 I2C_MEMADD_SIZE_8BIT, &buf, <span class="number">1</span>, <span class="number">100</span>);
+
+<span class="comment">/* 快速验证：写配置后读回比对 */</span>
+INA226_WriteReg(REG_CONFIG, <span class="number">0x07FF</span>);
+<span class="keyword">uint16_t</span> back = INA226_ReadReg(REG_CONFIG);
+<span class="function">printf</span>(<span class="string">"Config: 0x%04X\r\n"</span>, back);
+</pre>
+          </div>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ i2cdetect -y 1 && echo "Device 0x40 ACK ✓"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

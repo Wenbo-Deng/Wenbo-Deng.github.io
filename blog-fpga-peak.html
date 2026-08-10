@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VHDL Peak Detector on Artix-7 - FSM, UART, Two-Phase Handshake Digital Design">
+  <title>从 VHDL 到硬件：在 Artix-7 上用状态机实现峰值检测 | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / fpga-peak
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>从 VHDL 到硬件：在 Artix-7 上用状态机实现峰值检测</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>FPGA · VHDL · Digital Logic</span> · <span>~7 min read</span>
+          </div>
+
+          <blockquote>
+            <p>在一个 100MHz 的 Artix-7 上，用 VHDL 写一个「终端命令 → 数据采集 → 峰值判定 → 串口回显」的完整硬件系统。这篇记录命令解析 FSM 的设计、两相握手协议的细节，以及 signed/unsigned 两种字节解释的实现与验证。</p>
+          </blockquote>
+
+          <h2>系统要做什么？</h2>
+          <p>
+            用户在 <strong>PuTTY (VT100)</strong> 终端输入命令，通过
+            <strong>UART / RS-232</strong> 发给 <strong>Digilent CMOD A7</strong>
+            （Xilinx Artix-7，板载 12MHz 晶振经 MMCM/PLL 倍频到 100MHz 系统时钟）。
+            FPGA 解析命令、按两相握手从数据源取数、判定峰值字节，再把结果回传终端。
+          </p>
+
+          <div class="code-block">
+<pre><span class="comment">/* 功能规格（来自 ECAD 设计规范） */</span>
+aNNN / ANNN : 启动处理 NNN 个字节 (000–999)，逐字节十六进制打印
+P / p       : 打印峰值字节 + 十进制索引（如 "FD 197"）
+L / l       : 打印峰值 ±3 邻居共 7 字节
+BTN1        : 同步复位，终止一切处理
+<span class="comment">// signed/unsigned 两种模式各自独立，谁"更大"谁赢</span>
+</pre>
+          </div>
+
+          <h2>架构：三段式硬件流水</h2>
+          <div class="code-block">
+<pre><span class="comment">/* FPGA 顶层结构 — 复用 UART + 数据源，自研命令与消费逻辑 */</span>
+PC/PuTTY ◄──UART Rx/Tx──► Command Processor (FSM)
+                            │ start / count / req
+                            ▼
+                         Data Consumer
+                            │ req ─┐  ▲ data_valid
+                            ▼      └──┤
+                         Data Generator (500-byte 序列)
+</pre>
+          </div>
+          <p>
+            三个给定模块（UART RX、UART TX、数据生成器）<strong>原封不动</strong>接入；
+            真正需要设计的是<strong>命令处理器（FSM）</strong>和<strong>数据消费者</strong>。
+            这种"外围给定、核心自研"的模式非常接近真实企业里的模块化开发。
+          </p>
+
+          <h2>核心 1：命令处理器 — 有限状态机</h2>
+          <p>
+            命令校验遵循规范：任何 <span class="mono">'A'/'a'</span> 后紧跟<strong>恰好 3 位十进制数字</strong>
+            才算有效启动命令。因此 <span class="mono">"hjhgjga945"</span> 合法，
+            而 <span class="mono">"A56k7"</span>、<span class="mono">"a55"</span> 必须拒绝。
+          </p>
+          <div class="code-block">
+<pre><span class="comment">-- VHDL · 命令处理器 FSM 骨架</span>
+<span class="keyword">type</span> state_t <span class="keyword">is</span> (IDLE, GOT_A, GOT_D1, GOT_D2, RUN, PRINT_READY);
+signal state : state_t;
+
+<span class="keyword">case</span> state <span class="keyword">is</span>
+  <span class="keyword">when</span> IDLE =>
+    <span class="keyword">if</span> rx_data = <span class="string">"A"</span> <span class="keyword">or</span> rx_data = <span class="string">"a"</span> <span class="keyword">then</span>
+      state <= GOT_A;               <span class="comment">-- 见到 'A'，等待第 1 位数字</span>
+    <span class="keyword">elsif</span> rx_data = <span class="string">"P"</span> <span class="keyword">or</span> rx_data = <span class="string">"p"</span> <span class="keyword">then</span>
+      <span class="comment">-- 锁存峰值 + 索引 → TX</span>
+    <span class="keyword">elsif</span> rx_data = <span class="string">"L"</span> <span class="keyword">or</span> rx_data = <span class="string">"l"</span> <span class="keyword">then</span>
+      <span class="comment">-- 锁存峰值邻域 7 字节 → TX</span>
+    <span class="keyword">end if</span>;
+  <span class="keyword">when</span> GOT_A  => ...   <span class="comment">-- 第 1 位数字 (000–999)</span>
+  <span class="keyword">when</span> GOT_D1 => ...   <span class="comment">-- 第 2 位数字</span>
+  <span class="keyword">when</span> GOT_D2 => ...   <span class="comment">-- 第 3 位数字 → 启动数据运行</span>
+  <span class="keyword">when</span> RUN => ...      <span class="comment">-- 消费 N 个字节</span>
+  <span class="keyword">when</span> PRINT_READY => ...   <span class="comment">-- 等待 P / L 查询</span>
+<span class="keyword">end case</span>;
+</pre>
+          </div>
+          <p>
+            合法 <span class="mono">aNNN</span> 使 FSM 进入 <span class="mono">RUN</span>，
+            从数据源精确时钟 <span class="mono">NNN</span> 个字节（每个立即以十六进制打印），
+            然后进入 <span class="mono">PRINT_READY</span> 等待 <span class="mono">P</span>/<span class="mono">L</span>。
+          </p>
+
+          <h2>核心 2：数据消费者 — 两相握手</h2>
+          <p>
+            数据生成器每次只吐 1 个字节，通过<strong>两相握手</strong>同步：
+            消费者翻转 <span class="mono">req</span> 请求新字节 → 生成器放数据并翻转
+            <span class="mono">data_valid</span> → 消费者在有效沿锁存。
+          </p>
+          <div class="code-block">
+<pre><span class="comment">-- VHDL · 峰值跟踪（unsigned 版本）</span>
+<span class="keyword">if</span> data_valid'<span class="keyword">event</span> <span class="keyword">then</span>          <span class="comment">-- 检测翻转沿</span>
+  <span class="keyword">if</span> data > peak_value <span class="keyword">then</span>      <span class="comment">-- 严格大于 → 保留第一个峰值</span>
+    peak_value <= data;
+    peak_index <= index_cnt;
+  <span class="keyword">end if</span>;
+  <span class="comment">-- 邻域寄存器链：b0←b1, b1←b2, b2←peak_prev ...</span>
+  index_cnt <= index_cnt + 1;
+<span class="keyword">end if</span>;
+</pre>
+          </div>
+
+          <h3>为什么"大于"必须严格？</h3>
+          <p>
+            规范要求多个相同最大值时<strong>保留第一个</strong>。用 <span class="mono">data > peak</span>
+            （而非 <span class="mono">>=</span>）后，重复的最大值不会覆盖已记录的峰值，
+            恰好满足"FIRST peak retained"。这类<strong>边界语义</strong>是硬件设计与上层软件最大的差异——
+            一个比较器的符号都可能改变系统行为。
+          </p>
+
+          <h3>邻域 7 字节怎么来？</h3>
+          <p>
+            一组长度为 6 的移位寄存器链持续滚动：锁存最近 6 个字节。检测到峰值时，
+            前 3 个（链中段的旧数据）就是 <span class="mono">peak−3..peak−1</span>，
+            峰值后每来一个字节再推入链尾，凑齐后 3 个。若窗口越界（峰值靠近序列头尾），
+            规范允许直接打印——由 <span class="mono">P</span> 命令的索引消歧。
+          </p>
+
+          <h2>signed vs unsigned：同一套逻辑，两种世界观</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Flavour</th>
+                  <th>Comparison</th>
+                  <th>Range</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Unsigned</td>
+                  <td>8-bit magnitude</td>
+                  <td>0 – 255</td>
+                </tr>
+                <tr>
+                  <td>Signed</td>
+                  <td>Two's-complement</td>
+                  <td>−128 – +127</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            同一个设计参数化出两套实现，各自独立综合、布线、生成 <span class="mono">.bit</span> 并上板验证。
+            这让我意识到：<strong>硬件的"数据类型"是设计决策，不是编译器的事</strong>——选错解释方式，0xFF 到底是 255 还是 −1，峰值结果完全不同。
+          </p>
+
+          <h2>验证策略：仿真先行，上板收尾</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Testbench</th>
+                  <th>Scope</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>tb_UART.vhd</td>
+                  <td>UART 字节级收发、波特率时序、回显路径</td>
+                </tr>
+                <tr>
+                  <td>tb_dataGenConsume_*.vhd</td>
+                  <td>两相握手 + 完整 500 字节序列的峰值跟踪</td>
+                </tr>
+                <tr>
+                  <td>tb_dataConsume_*.vhd</td>
+                  <td>消费模块：峰值、索引、±3 邻域寄存器</td>
+                </tr>
+                <tr>
+                  <td>tb_CmdProcessor_Interim.vhd</td>
+                  <td>命令 FSM：合法/非法字符串、RUN 后 P/L</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            最终通过 <strong>Vivado 2022.2 Hardware Manager</strong> 把 bitstream 烧进
+            CMOD A7，用 PuTTY 终端逐一验证所有命令、多种序列长度和边界情况。
+            仿真无法替代上板——时序收敛、引脚约束、真实波特率下的稳定收发，只有硬件会告诉你。
+          </p>
+
+          <h2>经验总结</h2>
+          <ol>
+            <li><strong>FSM 是数字控制的核心武器</strong>——复杂命令解析拆成状态转移，可读且可仿真验证</li>
+            <li><strong>两相握手天然跨时钟域安全</strong>，是模块间数据同步的教科书方案</li>
+            <li><strong>比较器的"严格大于"是一种语义选择</strong>，直接影响边界行为（FIRST peak）</li>
+            <li><strong>signed/unsigned 是设计问题不是类型问题</strong>——同样的比特流，解释方式决定一切</li>
+            <li><strong>仿真 + 上板双验证缺一不可</strong>：testbench 保证逻辑正确，bitstream 保证物理成立</li>
+          </ol>
+
+          <h2>附：串口回显与换行细节</h2>
+          <div class="code-block">
+<pre><span class="comment">-- VT100 光标定位：换行必须是 \n + \r 双字节序列</span>
+<span class="comment">-- 否则输出会覆盖同一行，终端界面错乱</span>
+tx_data <= <span class="string">"\n"</span>;  ...  tx_data <= <span class="string">"\r"</span>;
+<span class="comment">// 回显：收到什么立刻原样发回，用户才能看到自己的输入</span>
+</pre>
+          </div>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "peak_detected" && echo "FIRST_peak_retained" && exit 0</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

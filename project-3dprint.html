@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ECG Monitor Enclosure - FDM 3D Printed Case Design, Bambu Studio, DFM, Rapid Prototyping">
+  <title>ECG Enclosure — 3D Printed Case Design | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+  <style>
+    .viewer-section { padding: 40px 0; }
+    .viewer-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--card-radius);
+      overflow: hidden;
+      position: relative;
+    }
+    #enclosure-canvas {
+      width: 100%;
+      height: 560px;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+    }
+    #enclosure-canvas:active { cursor: grabbing; }
+    .viewer-hint {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: rgba(13, 17, 23, 0.85);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 20px;
+      pointer-events: none;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+    }
+    .viewer-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 14px;
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border-color);
+    }
+    .viewer-controls button {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      background: transparent;
+      border: 1px solid rgba(0, 212, 170, 0.3);
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .viewer-controls button:hover {
+      background: var(--accent-dim);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .enclosure-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+    .enclosure-stat {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .enclosure-stat .stat-value {
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .enclosure-stat .stat-label {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+    @media (max-width: 768px) {
+      #enclosure-canvas { height: 380px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="projects.html">projects</a> / ecg-enclosure
+        </div>
+        <div class="section-subtitle">// Project · 3D Printed Enclosure</div>
+        <h1>ECG Monitor Enclosure — FDM 3D Printed Case</h1>
+        <p style="max-width:700px; color:var(--text-secondary);">
+          Complete enclosure design for my <strong>ECG Activity Monitoring</strong> device
+          (RPi Zero W + AD8232 + MCP3008 integrated PCB). Performed the full
+          <strong>CAD → slicing → FDM printing → fit-test → iteration</strong> loop
+          on a Bambu Lab X1-Carbon.
+          为 ECG 毕设设备设计并打印铝合金级装配公差的外壳，完成两轮打印迭代。
+          <br><span class="mono" style="color:var(--accent);">↓ 可交互 3D 外壳模型（拖拽旋转 / 滚轮缩放 / 半透明下盖可见内部）</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- ========== Interactive 3D Enclosure Viewer ========== -->
+    <section class="viewer-section">
+      <div class="container">
+        <div class="viewer-panel">
+          <div class="terminal-header">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">ecg-enclosure.scene — Three.js WebGL</span>
+          </div>
+          <canvas id="enclosure-canvas"></canvas>
+          <div class="viewer-hint">🖱️ Drag to rotate &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; R to reset</div>
+          <div class="viewer-controls">
+            <button id="btn-reset">↺ Reset View</button>
+            <button id="btn-rotate">🔄 Auto-Rotate</button>
+            <button id="btn-lid">🎚 Toggle Lid (Exploded)</button>
+          </div>
+        </div>
+        <div class="enclosure-stats">
+          <div class="enclosure-stat">
+            <div class="stat-value">92 × 62 × 28 mm</div>
+            <div class="stat-label">Enclosure Size</div>
+          </div>
+          <div class="enclosure-stat">
+            <div class="stat-value">1.6 mm</div>
+            <div class="stat-label">Wall Thickness</div>
+          </div>
+          <div class="enclosure-stat">
+            <div class="stat-value">~9.5 h</div>
+            <div class="stat-label">Total Print Time</div>
+          </div>
+          <div class="enclosure-stat">
+            <div class="stat-value">2 iter.</div>
+            <div class="stat-label">Fit Test Iterations</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:20px;">
+      <div class="container">
+        <div class="project-meta">
+          <div class="meta-item">
+            <div class="label">Printer</div>
+            <div class="value">Bambu Lab X1-Carbon</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Material</div>
+            <div class="value">PETG (shell) · TPU (pad)</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Status</div>
+            <div class="value">✓ V2 Assembled & Fitted</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Slicer</div>
+            <div class="value">Bambu Studio</div>
+          </div>
+        </div>
+
+        <div class="project-detail">
+          <h2>// Overview</h2>
+          <p>
+            Designed a portable <strong>enclosure for my ECG Activity Monitoring device</strong> —
+            a single integrated PCB carrying RPi Zero W, AD8232 analog front-end, MCP3008 ADC,
+            and the power management chain. The case protects the sensitive analog front-end,
+            secures the 18650 battery, and provides clean I/O cutouts for the 3-lead electrodes,
+            USB-C power, and status LED.
+          </p>
+          <p>
+            为 ECG 毕设设备设计便携外壳：集成板 + 18650 电池一体化封装。两轮打印迭代
+            解决卡扣过紧与电池仓公差问题，最终 V2 完美装配。
+          </p>
+
+          <h2>// Enclosure Structure</h2>
+          <div class="code-block">
+<pre><span class="comment">/* Exploded view — 4 printed parts + hardware */</span>
+┌──────────────────────────────────────────────┐
+│  TOP COVER (PETG, solid)                     │
+│  ┌────────────────────────────────────────┐  │
+│  │  electrode holes ×3  (6mm front)       │  │
+│  │  USB-C slot (8.5×3mm, side)            │  │
+│  │  LED hole (3mm, green)                 │  │
+│  │  clips ×2 + screw bosses M2.5 ×4       │  │
+│  └────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────┐  │
+│  │  BOTTOM COVER (PETG, translucent)      │  │
+│  │  PCB pocket + 4 locating studs         │  │
+│  │  18650 battery cavity Ø19×65mm         │  │
+│  │  cable routing slots                   │  │
+│  │  vent grille 5×6 (bottom)              │  │
+│  └────────────────────────────────────────┘  │
+│  T-PAD (TPU, 2mm) : anti-vibration strip     │
+│  ELEC-PLATE (PETG): electrode interface cover │
+└──────────────────────────────────────────────┘
+</pre>
+          </div>
+
+          <h2>// Design-for-Printing Specifics</h2>
+          <p>
+            Every feature was dimensioned for reliable FDM output on a 0.4mm nozzle:
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Spec</th>
+                  <th>Printing Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Wall thickness</td>
+                  <td>1.6 mm (4 loops)</td>
+                  <td>Stiffness without excessive weight</td>
+                </tr>
+                <tr>
+                  <td>M2.5 screw boss</td>
+                  <td>Ø4.5 outer / Ø2.2 hole</td>
+                  <td>Heat-set insert or self-tapping</td>
+                </tr>
+                <tr>
+                  <td>Snap-fit clip</td>
+                  <td>clip thickness 1.0 mm</td>
+                  <td>Overhang <45° self-supporting</td>
+                </tr>
+                <tr>
+                  <td>18650 cavity</td>
+                  <td>Ø19.2 × 65.2 mm</td>
+                  <td>+0.2mm clearance for cell tolerance</td>
+                </tr>
+                <tr>
+                  <td>PCB locating studs</td>
+                  <td>Ø2.5 × 3 mm ×4</td>
+                  <td>Press-fit board alignment</td>
+                </tr>
+                <tr>
+                  <td>Electrode hole Ø6</td>
+                  <td>chamfered entry</td>
+                  <td>No supports on vertical holes</td>
+                </tr>
+                <tr>
+                  <td>Vent grille</td>
+                  <td>1.2 mm slots ×30</td>
+                  <td>Below 1.6mm bridge limit</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>// Print Plan — Split & Orientation</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Part</th>
+                  <th>Orientation</th>
+                  <th>Support</th>
+                  <th>Time / Material</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Bottom cover</td>
+                  <td>Face down</td>
+                  <td>None (features up)</td>
+                  <td style="color:var(--accent);">3.2 h · PETG 48 g</td>
+                </tr>
+                <tr>
+                  <td>Top cover</td>
+                  <td>Face down</td>
+                  <td>None</td>
+                  <td style="color:var(--accent);">3.5 h · PETG 52 g</td>
+                </tr>
+                <tr>
+                  <td>Electrode plate</td>
+                  <td>Flat</td>
+                  <td>None</td>
+                  <td style="color:var(--accent);">1.2 h · PETG 12 g</td>
+                </tr>
+                <tr>
+                  <td>T-pad</td>
+                  <td>Flat</td>
+                  <td>None</td>
+                  <td style="color:var(--accent);">1.6 h · TPU 20 g</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Total <strong>~9.5 h · 132 g</strong> across 4 prints — all self-supporting, zero supports required.
+            Layer height 0.16mm for cosmetic top surfaces, 0.20mm for hidden pads.
+          </p>
+
+          <h2>// Fit-Test Iterations (V1 → V2)</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Issue (V1)</th>
+                  <th>Root Cause</th>
+                  <th>Fix (V2)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Snap clips too tight — lid cracked on assembly</td>
+                  <td>Clip interference +0.05mm too small</td>
+                  <td style="color:var(--accent);">Clip clearance +0.2mm, filleted hook</td>
+                </tr>
+                <tr>
+                  <td>18650 cell rattled</td>
+                  <td>Cavity Ø19.0 too tight from elephants-foot</td>
+                  <td style="color:var(--accent);">Ø19.2 + 0.4mm bottom chamfer</td>
+                </tr>
+                <tr>
+                  <td>USB-C slot misaligned 0.3mm</td>
+                  <td>Shrinkage across 90mm length</td>
+                  <td style="color:var(--accent);">Compensated +0.3% XY scale on V2</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            These iterations are the real value of desktop 3D printing: a <strong>24-hour
+            design-fix-reprint cycle</strong> instead of waiting days for outsourcing.
+          </p>
+
+          <h2>// Skills Demonstrated</h2>
+          <div class="card-tech" style="margin-top:12px;">
+            <span>FDM 3D Printing</span>
+            <span>Bambu Studio</span>
+            <span>CAD (Fusion 360)</span>
+            <span>Design-for-Printing</span>
+            <span>Snap-Fit Design</span>
+            <span>PETG / TPU</span>
+            <span>Dimensional Tolerancing</span>
+            <span>Iterative Prototyping</span>
+            <span>Three.js Visualization</span>
+          </div>
+
+          <h2>// Related</h2>
+          <p>
+            The full hardware story — novel front-end, <a href="project-ecg.html">ECG Activity
+            Monitoring project</a>, power delivery, and PCB integration.
+          </p>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+          <a href="projects.html" class="btn btn-outline">← Back to Projects</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "print v2: OK — snap fit tight, electrode holes clean" && exit 0</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+
+  <!-- Three.js via ES modules (CDN) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ==== Scene setup ====
+    const canvas = document.getElementById('enclosure-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1117);
+    scene.fog = new THREE.Fog(0x0d1117, 12, 30);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(4.2, 3.0, 4.6);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0.5, 0);
+    controls.minDistance = 2;
+    controls.maxDistance = 14;
+    controls.maxPolarAngle = Math.PI / 2.05;
+    controls.autoRotate = false;
+    controls.autoRotateSpeed = 2.0;
+
+    // ==== Lights ====
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x3a4454, 0.9);
+    scene.add(hemi);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    keyLight.position.set(4, 6, 3);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 20;
+    keyLight.shadow.camera.left = -4;
+    keyLight.shadow.camera.right = 4;
+    keyLight.shadow.camera.top = 4;
+    keyLight.shadow.camera.bottom = -4;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x00d4aa, 0.8);
+    rimLight.position.set(-3, 2, -3);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.DirectionalLight(0x4466ff, 0.4);
+    fillLight.position.set(-2, 1.5, 4);
+    scene.add(fillLight);
+
+    // ==== Ground + grid ====
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      new THREE.MeshStandardMaterial({ color: 0x161b22, roughness: 0.9, metalness: 0.1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.02;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const grid = new THREE.GridHelper(8, 12, 0x30363d, 0x21262d);
+    scene.add(grid);
+
+    // ==== Materials ====
+    const mats = {
+      shell:   new THREE.MeshStandardMaterial({ color: 0x2d333b, roughness: 0.45, metalness: 0.3 }),
+      shellT:  new THREE.MeshStandardMaterial({ color: 0x3a4454, roughness: 0.35, metalness: 0.15, transparent: true, opacity: 0.45 }),
+      accent:  new THREE.MeshStandardMaterial({ color: 0x00d4aa, roughness: 0.3, metalness: 0.2, emissive: 0x00d4aa, emissiveIntensity: 0.15 }),
+      pcb:     new THREE.MeshStandardMaterial({ color: 0x1a7a3f, roughness: 0.6 }),
+      chip:    new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.4, metalness: 0.6 }),
+      led:     new THREE.MeshStandardMaterial({ color: 0x00ff66, roughness: 0.3, emissive: 0x00ff66, emissiveIntensity: 0.8 }),
+      battery: new THREE.MeshStandardMaterial({ color: 0x8b2f2f, roughness: 0.6 }),
+      metal:   new THREE.MeshStandardMaterial({ color: 0x8892a0, roughness: 0.25, metalness: 0.9 }),
+      tpu:     new THREE.MeshStandardMaterial({ color: 0x252a31, roughness: 0.95 }),
+      electrode: new THREE.MeshStandardMaterial({ color: 0xb8c2cc, roughness: 0.3, metalness: 0.7 }),
+      silicone: new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.8 })
+    };
+
+    // ==== Enclosure group ====
+    const enclosure = new THREE.Group();
+    scene.add(enclosure);
+
+    // ----- Common dims -----
+    const L = 0.92, W = 0.62, H = 0.28;          // meters (92×62×28mm)
+    const wall = 0.016;
+
+    // ----- BOTTOM COVER (translucent, with interior visible) -----
+    // Outer shell: box with the bottom + 4 side walls (open top)
+    const bottomOuter = new THREE.Mesh(new THREE.BoxGeometry(L, H - wall, W), mats.shellT);
+    bottomOuter.position.y = (H - wall) / 2;
+    bottomOuter.castShadow = true;
+    bottomOuter.receiveShadow = true;
+    enclosure.add(bottomOuter);
+
+    // Interior cavity visual (darker inset so PCB/battery read clearly)
+    const cavity = new THREE.Mesh(
+      new THREE.BoxGeometry(L - 2 * wall * 1.2, H - 2 * wall, W - 2 * wall * 1.2),
+      new THREE.MeshStandardMaterial({ color: 0x1c2333, roughness: 0.7 })
+    );
+    cavity.position.y = (H - 2 * wall) / 2;
+    enclosure.add(cavity);
+
+    // ----- Integrated PCB (main board) -----
+    const pcb = new THREE.Group();
+    pcb.position.set(0, wall + 0.003, 0.06);
+    pcb.rotation.x = 0;
+    enclosure.add(pcb);
+
+    const pcbBoard = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.012, 0.34), mats.pcb);
+    pcbBoard.castShadow = true;
+    pcb.add(pcbBoard);
+
+    // AD8232 module (front-left, analog area)
+    const ad = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.018, 0.11), mats.chip);
+    ad.position.set(-0.18, 0.011, 0.09);
+    ad.castShadow = true;
+    pcb.add(ad);
+    // AD8232 label chip
+    const adLabel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.004, 0.05), mats.accent);
+    adLabel.position.set(-0.18, 0.021, 0.09);
+    pcb.add(adLabel);
+
+    // MCP3008 (next to AD8232, SPI)
+    const mcp = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.016, 0.06), mats.chip);
+    mcp.position.set(-0.18, 0.011, -0.04);
+    mcp.castShadow = true;
+    pcb.add(mcp);
+
+    // Pi Zero W footprint (center-right, digital area)
+    const pi = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.014, 0.15), mats.chip);
+    pi.position.set(0.03, 0.011, -0.06);
+    pi.castShadow = true;
+    pcb.add(pi);
+    // Pi GPIO header
+    const gpio = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.02, 0.012), mats.metal);
+    gpio.position.set(0.04, 0.024, -0.145);
+    gpio.castShadow = true;
+    pcb.add(gpio);
+
+    // Power management zone (right edge): TP4056 + boost + LDO
+    const pm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.018, 0.05), mats.chip);
+    pm.position.set(0.2, 0.011, 0.1);
+    pm.castShadow = true;
+    pcb.add(pm);
+
+    // PCB locating studs ×4 (corners)
+    const studPos = [
+      [-0.26, 0.006, 0.15], [0.26, 0.006, 0.15],
+      [-0.26, 0.006, -0.15], [0.26, 0.006, -0.15]
+    ];
+    studPos.forEach(p => {
+      const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.014, 12), mats.shell);
+      stud.position.set(p[0], p[1], p[2]);
+      stud.castShadow = true;
+      enclosure.add(stud);
+    });
+
+    // ----- 18650 battery (rear, translucent case visible) -----
+    const battery = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.065, 20), mats.battery);
+    battery.rotation.z = Math.PI / 2;
+    battery.position.set(-0.08, wall + 0.012, -0.16);
+    battery.castShadow = true;
+    enclosure.add(battery);
+    // battery + terminal
+    const btPos = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 10), mats.metal);
+    btPos.position.set(-0.113, wall + 0.02, -0.16);
+    enclosure.add(btPos);
+    const btNeg = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.004, 8), mats.metal);
+    btNeg.position.set(-0.046, wall + 0.02, -0.16);
+    btNeg.rotation.z = Math.PI / 2;
+    enclosure.add(btNeg);
+
+    // ----- Cable routing slots (visual grooves on inner walls) -----
+    for (let i = -1; i <= 1; i++) {
+      const groove = new THREE.Mesh(
+        new THREE.BoxGeometry(0.006, 0.02, 0.05),
+        new THREE.MeshStandardMaterial({ color: 0x11161d })
+      );
+      groove.position.set(0.07, 0.02, i * 0.18);
+      enclosure.add(groove);
+    }
+
+    // ----- TPU anti-vibration pad (bottom strip) -----
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(L + 0.002, 0.004, W + 0.002), mats.tpu);
+    pad.position.y = -0.004;
+    pad.castShadow = true;
+    enclosure.add(pad);
+
+    // ----- Front electrode plate + 3 jacks (top cover area) -----
+    // Electrode plate (front face protrusion)
+    const frontPlate = new THREE.Mesh(new THREE.BoxGeometry(L, 0.05, 0.012), mats.shell);
+    frontPlate.position.set(0, H + 0.012, W / 2);
+    frontPlate.castShadow = true;
+    enclosure.add(frontPlate);
+
+    // 3× 3.5mm jacks + plugs + lead cables
+    for (let i = -1; i <= 1; i++) {
+      const x = i * 0.22;
+      const y = H + 0.014;
+      // Jack body (silver ring)
+      const jack = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.036, 18), mats.electrode);
+      jack.rotation.x = Math.PI / 2;
+      jack.position.set(x, y, W / 2 + 0.02);
+      jack.castShadow = true;
+      enclosure.add(jack);
+      // Plug tip
+      const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.03, 12), mats.metal);
+      plug.rotation.x = Math.PI / 2;
+      plug.position.set(x, y, W / 2 + 0.045);
+      plug.castShadow = true;
+      enclosure.add(plug);
+      // Lead cable (curved, colored: red / yellow / black)
+      const col = [0xd04848, 0xd2a838, 0x333a44][i + 1];
+      const cable = new THREE.Mesh(new THREE.TubeGeometry(
+        new THREE.CatmullRomCurve3([
+          new THREE.Vector3(x, y, W / 2 + 0.06),
+          new THREE.Vector3(x + 0.04, y + 0.03, W / 2 + 0.09),
+          new THREE.Vector3(x + 0.18 * (i + 2), y + 0.02, W / 2 + 0.12)
+        ]), 20, 0.004, 8, false
+      ), new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 }));
+      enclosure.add(cable);
+    }
+
+    // ----- USB-C slot (side) -----
+    const usbcHole = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.008, 0.02), mats.metal);
+    usbcHole.position.set(-L / 2 - 0.004, H * 0.7, 0.16);
+    usbcHole.castShadow = true;
+    enclosure.add(usbcHole);
+    const usbcPlug = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.006, 0.01), mats.accent);
+    usbcPlug.position.set(-L / 2 - 0.016, H * 0.7, 0.16);
+    enclosure.add(usbcPlug);
+
+    // ----- Power LED (front top, breathing) -----
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 12, 12), mats.led);
+    led.position.set(0.30, H + 0.01, W / 2 - 0.01);
+    led.castShadow = true;
+    enclosure.add(led);
+
+    // ----- Vent grille (bottom) — visual slots on underside -----
+    for (let i = 0; i < 5; i++) {
+      for (let j = -3; j < 3; j++) {
+        const slot = new THREE.Mesh(
+          new THREE.BoxGeometry(0.09, 0.003, 0.012),
+          new THREE.MeshStandardMaterial({ color: 0x0d1117 })
+        );
+        slot.position.set(-0.3 + i * 0.13, -0.003, j * 0.06 + 0.02);
+        enclosure.add(slot);
+      }
+    }
+
+    // ----- Top cover (exploded group: initially raised) -----
+    const lid = new THREE.Group();
+    enclosure.add(lid);
+
+    const lidBody = new THREE.Mesh(new THREE.BoxGeometry(L, wall, W), mats.shell);
+    lidBody.position.y = H - wall / 2;
+    lidBody.castShadow = true;
+    lidBody.receiveShadow = true;
+    lid.add(lidBody);
+
+    // Lid inner rim (slight lip for snap fit)
+    const lidRim = new THREE.Mesh(new THREE.BoxGeometry(L - 2 * wall, 0.01, W - 2 * wall), mats.shell);
+    lidRim.position.y = H - wall;
+    lidRim.castShadow = true;
+    lid.add(lidRim);
+
+    // Lid screw bosses ×4 (matching studs)
+    studPos.forEach(p => {
+      const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), mats.shell);
+      boss.position.set(p[0], H - 0.004, p[2]);
+      boss.castShadow = true;
+      lid.add(boss);
+    });
+
+    // Snap clips ×2 (front & back center)
+    [-W / 2, W / 2].forEach(z => {
+      const clip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.014), mats.shell);
+      clip.position.set(-0.18, H - 0.012, z);
+      clip.castShadow = true;
+      lid.add(clip);
+      const clip2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.014), mats.shell);
+      clip2.position.set(0.18, H - 0.012, z);
+      clip2.castShadow = true;
+      lid.add(clip2);
+    });
+
+    // Rear strap holes ×2 (visual donuts on lid)
+    for (let i = -1; i <= 1; i += 2) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.004, 8, 16), mats.shell);
+      ring.position.set(i * 0.2, H + 0.02, -W / 2 + 0.01);
+      ring.rotation.x = Math.PI / 2;
+      ring.castShadow = true;
+      lid.add(ring);
+    }
+
+    // Start with lid seated; exploded toggle raises it
+    let lidRaised = false;
+    const lidSeatedY = 0;
+    const lidRaisedY = 0.18;
+
+    // ==== Animation controls ====
+    const clock = new THREE.Clock();
+    function animate() {
+      const dt = clock.getDelta();
+      // LED breathing
+      mats.led.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.004) * 0.4;
+      // Lid exploded interpolation
+      lid.position.y = THREE.MathUtils.lerp(lid.position.y, lidRaised ? lidRaisedY : lidSeatedY, 0.1);
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // ==== Resize ====
+    function resize() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height);
+      camera.aspect = rect.width / rect.height;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ==== UI ====
+    let autoRotate = false;
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      camera.position.set(4.2, 3.0, 4.6);
+      controls.target.set(0, 0.5, 0);
+      controls.autoRotate = false;
+      autoRotate = false;
+    });
+    document.getElementById('btn-rotate').addEventListener('click', () => {
+      autoRotate = !autoRotate;
+      controls.autoRotate = autoRotate;
+    });
+    document.getElementById('btn-lid').addEventListener('click', () => {
+      lidRaised = !lidRaised;
+      document.getElementById('btn-lid').textContent = lidRaised ? '🎚 Seat Lid' : '🎚 Toggle Lid (Exploded)';
+    });
+  </script>
+</body>
+</html>

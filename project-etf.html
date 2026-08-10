@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ETF Quantitative Analysis Tool - Python, Pandas, Multi-factor Model">
+  <title>ETF Quantitative Analysis Tool | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="projects.html">projects</a> / etf-tool
+        </div>
+        <div class="section-subtitle">// Project 03 · Data Analysis</div>
+        <h1>ETF Quantitative Trading Analysis</h1>
+        <p style="max-width:700px; color:var(--text-secondary);">
+          Python + Pandas 多因子量化分析工具，用于半导体设备 ETF (159516) 的 T+1 交易决策。
+        </p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:20px;">
+      <div class="container">
+        <div class="project-meta">
+          <div class="meta-item">
+            <div class="label">Stack</div>
+            <div class="value">Python · Pandas</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Target</div>
+            <div class="value">ETF 159516 (Semiconductor)</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Approach</div>
+            <div class="value">Multi-factor weighted model</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Domain</div>
+            <div class="value">Quant · Statistical Analysis</div>
+          </div>
+        </div>
+
+        <div class="project-detail">
+          <h2>// Overview</h2>
+          <p>
+            A multi-factor trading analysis tool for the semiconductor equipment ETF (159516),
+            combining <strong>technical indicators</strong> (ATR/MA/RSI/Bollinger, 30% weight) with
+            <strong>fund flow data</strong> (主力净流入, 35% weight) to predict T+1 high/low ranges
+            and generate swing-trading recommendations.
+          </p>
+          <p>
+            基于技术面 + 资金面多因子加权的 ETF 做T分析工具，输出次日高低点区间预测。
+          </p>
+
+          <h2>// Factor Weighting Model</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Factor</th>
+                  <th>Indicator</th>
+                  <th>Weight</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>MA Trend</td>
+                  <td>5/10/20-day moving averages</td>
+                  <td>30%</td>
+                </tr>
+                <tr>
+                  <td style="color:var(--accent);">Fund Flow</td>
+                  <td>主力净流入 (institutional flow)</td>
+                  <td style="color:var(--accent);">35%</td>
+                </tr>
+                <tr>
+                  <td>Bollinger Bands</td>
+                  <td>20-day ±2σ</td>
+                  <td>15%</td>
+                </tr>
+                <tr>
+                  <td>RSI</td>
+                  <td>14-period</td>
+                  <td>10%</td>
+                </tr>
+                <tr>
+                  <td>Sector</td>
+                  <td>ETF fund flow proxy</td>
+                  <td>10%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>// Correlation Analysis</h2>
+          <p>
+            Conducted a statistical study: <strong>retail investor fund flow vs next-day ETF returns</strong>
+            over 34 trading days (Jun 17 – Aug 4, 2026).
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>Interpretation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Correlation (T-day flow vs T+1 return)</td>
+                  <td style="color:var(--accent);">r = 0.2718</td>
+                  <td>Weak positive correlation</td>
+                </tr>
+                <tr>
+                  <td>p-value</td>
+                  <td>0.1101</td>
+                  <td>Not significant (limited sample)</td>
+                </tr>
+                <tr>
+                  <td>Control: flow vs same-day index</td>
+                  <td>r = −0.7472</td>
+                  <td>Strong negative (dumb money effect)</td>
+                </tr>
+                <tr>
+                  <td>Inflow days → next-day up rate</td>
+                  <td>55%</td>
+                  <td>Avg +0.17%</td>
+                </tr>
+                <tr>
+                  <td>Outflow days → next-day up rate</td>
+                  <td>33%</td>
+                  <td>Avg −2.14%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <span style="color:var(--warning);">Key finding:</span> retail inflow days showed 22pp higher
+            next-day up rate vs outflow days, suggesting a weak predictive signal worth monitoring.
+          </p>
+
+          <h2>// Sample Code — Weighted Scoring</h2>
+          <div class="code-block">
+<pre><span class="keyword">def</span> <span class="function">calculate_score</span>(technical, fund_flow, boll, rsi, sector):
+    score = (
+        W_MA_TREND   * technical +
+        W_FUND_FLOW  * fund_flow +
+        W_BOLL       * boll +
+        W_RSI        * rsi +
+        W_SECTOR     * sector
+    )
+    <span class="keyword">return</span> score  <span class="comment"># 0-100, >60 → buy, <40 → sell</span>
+</pre>
+          </div>
+
+          <h2>// Sample Output</h2>
+          <div class="code-block">
+<pre><span class="comment"># T+1 prediction output</span>
+═══════════════════════════════════════════════
+ETF: 159516 (半导体设备ETF国泰)
+Date: 2026-08-05
+┌─────────────────────────────────────────────┐
+│ MA Trend    : Bullish   (5>10>20 MA)       │
+│ Fund Flow   : +3.2%     (strong inflow)    │
+│ Bollinger   : Mid-band  (neutral)          │
+│ RSI(14)     : 58.3      (neutral-bull)     │
+│ ─────────────────────────────────────────── │
+│ <span class="keyword">SCORE</span>        : <span class="number">72</span>/<span class="number">100</span>  → BUY          │
+│ Predicted   : High 1.128 / Low 1.089       │
+└─────────────────────────────────────────────┘
+</pre>
+          </div>
+
+          <h2>// Skills Demonstrated</h2>
+          <div class="card-tech" style="margin-top:12px;">
+            <span>Python</span>
+            <span>Pandas</span>
+            <span>Statistical Analysis</span>
+            <span>Correlation & p-value</span>
+            <span>Data Pipeline</span>
+            <span>CSV/JSON Handling</span>
+            <span>Technical Indicators</span>
+          </div>
+
+          <h2>// Related</h2>
+          <p>
+            Full correlation report and analysis scripts — <a href="contact.html">contact me</a>
+            for access to the repository.
+          </p>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+          <a href="projects.html" class="btn btn-outline">← Back to Projects</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ python main.py && echo "RSI: 58.3 · Score: 72 · Action: BUY"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

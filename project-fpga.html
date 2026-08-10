@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FPGA Peak Detector Project - VHDL, UART Communication, Artix-7 CMOD A7, Finite State Machine">
+  <title>FPGA Peak Detector (VHDL + UART) | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="projects.html">projects</a> / fpga
+        </div>
+        <div class="section-subtitle">// Project 06 · FPGA & Digital Logic</div>
+        <h1>FPGA Peak Detector — VHDL Digital Design on Artix-7</h1>
+        <p style="max-width:700px; color:var(--text-secondary);">
+          FPGA-based peak detection system implemented in VHDL on a Digilent CMOD A7
+          (Artix-7) board. 100 MHz system clock · UART / RS-232 link ·
+          command processor FSM · data consumer with two-phase handshake ·
+          signed/unsigned peak detection. 基于 UART 命令交互的 FPGA 峰值检测系统，
+          完整实现命令解析、数据采集、峰值判定与回显的硬件全链路。
+        </p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:20px;">
+      <div class="container">
+        <div class="project-meta">
+          <div class="meta-item">
+            <div class="label">Timeline</div>
+            <div class="value">2023</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Platform</div>
+            <div class="value">CMOD A7 · Artix-7 · 100MHz</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Status</div>
+            <div class="value">✓ Complete</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Key Concept</div>
+            <div class="value">VHDL · UART · FSM · Peak Detection</div>
+          </div>
+        </div>
+
+        <div class="project-detail">
+          <h2>// Overview</h2>
+          <p>
+            Designed and implemented a complete <strong>peak detection system</strong> in VHDL.
+            The full system integrates a <strong>peak detector</strong>,
+            a <strong>data source</strong> (data generator with 500-byte sequence), and
+            <strong>UART communication links</strong> — all implemented in VHDL on a
+            <strong>Digilent CMOD A7</strong> board (Xilinx Artix-7, 100 MHz system clock generated
+            from the 12 MHz on-board clock via a clock conditioning IP).
+          </p>
+          <p>
+            The user types commands into a <strong>PuTTY VT100 terminal</strong>; keystrokes are sent
+            through the UART (RS-232) link to the FPGA. The system processes a payload stream,
+            identifies the peak byte with respect to signed/unsigned interpretation, and reports it
+            along with the surrounding bytes and index — output back to the terminal via UART TX.
+          </p>
+          <p>
+            独立完成的 FPGA 工程：在 CMOD A7 (Artix-7) 上以 VHDL 实现峰值检测系统。
+            PC 终端 (PuTTY) 通过 UART 发送指令 → FPGA 解析命令、两相握手式采集数据、
+            检测峰值字节 → 经 UART 回传结果。支持 signed/unsigned 两种字节解释模式。
+          </p>
+
+          <h2>// Functional Specifications</h2>
+          <p>
+            The system is controlled purely through the terminal interface. Every keystroke is echoed,
+            and valid commands trigger specific behaviours:
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="mono">aNNN</span> / <span class="mono">ANNN</span></td>
+                  <td>Start command to process <span class="mono">NNN</span> bytes (000–999). Each byte is printed to the terminal in hexadecimal, separated by spaces (e.g. <span class="mono">FF A9</span>).</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">p</span> / <span class="mono">P</span></td>
+                  <td>Print the peak byte in hexadecimal, followed by a space and its index in decimal (e.g. <span class="mono">FD 197</span>).</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">l</span> / <span class="mono">L</span></td>
+                  <td>Print 7 bytes in hexadecimal: 3 preceding the peak + the peak + 3 following (e.g. <span class="mono">09 FA A0 FD BC 10 DE</span>).</td>
+                </tr>
+                <tr>
+                  <td>BTN1 (push button)</td>
+                  <td>Synchronous reset — halts any active processing and returns the system to its initial state.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Edge cases are handled explicitly: if the peak sits near the start/end of the requested
+            window (fewer than 3 valid bytes on either side), the system still prints all 7 bytes —
+            out-of-range entries are simply disregarded, as the index from the <span class="mono">P</span>
+            command disambiguates valid data. If multiple peaks occur, the <strong>first</strong> is retained.
+          </p>
+
+          <h2>// System Architecture</h2>
+          <div class="code-block">
+<pre><span class="comment">/* FPGA (Artix-7 · CMOD A7) : PC ←UART→ FPGA ←2-phase→ Data Source */</span>
+
+                PC / PuTTY (VT100)
+                     │
+               RS-232 serial · mini-USB
+                     │ UART Rx / Tx pins
+       ┌─────────────▼───────────────────────────────────────┐
+       │               FPGA · Artix-7 · 100 MHz              │
+       │                                                     │
+       │  ┌───────────────┐        ┌───────────────────────┐ │
+       │  │ UART RX_CTRL  │        │ UART TX_CTRL          │ │
+       │  │ (RS-232 Rx)   │        │ (RS-232 Tx)           │ │
+       │  └──────┬────────┘        └──────────▲────────────┘ │
+       │         │ byte + valid               │ byte + send  │
+       │  ┌──────▼─────────────────────────────┴──────────┐  │
+       │  │           Command Processor (FSM)              │  │
+       │  │  · decode aNNN / A N N N / P / L               │  │
+       │  │  · echo keystrokes · newline \n \r             │  │
+       │  └──────┬─────────────────────────────────────────┘  │
+       │         │ start / count / addr / req                │
+       │  ┌──────▼─────────────────────────────────────────┐  │
+       │  │           Data Consumer                        │  │
+       │  │  · peak register · index · ±3 neighbours       │  │
+       │  │  · signed / unsigned comparator                 │  │
+       │  └──────┬───────────────▲─────────────────────────┘  │
+       │         │ req           │ data valid (2-phase)      │
+       │  ┌──────▼───────────────┴─────────────────────────┐  │
+       │  │           Data Generator (500B sequence)       │  │
+       │  └────────────────────────────────────────────────┘  │
+       └─────────────────────────────────────────────────────┘
+</pre>
+          </div>
+          <p>
+            The three supplied modules (UART RX, UART TX, Data Generator) are used
+            <strong>without modification</strong>; the custom logic — <em>Command Processor</em> and
+            <em>Data Consumer</em> — wraps around them to form the complete peak detection system.
+          </p>
+
+          <h2>// UART Communication — RS-232</h2>
+          <p>
+            The host PC and FPGA communicate over a <strong>UART / RS-232</strong> serial link through
+            the CMOD A7's mini-USB port. The <span class="mono">UART_RX_CTRL</span> module captures
+            each received byte and provides it on 8 parallel lines with a valid pulse; the
+            <span class="mono">UART_TX_CTRL</span> module serialises 8-bit data for transmission.
+            Terminal echo is implemented by routing every received character straight back to TX.
+          </p>
+          <p>
+            New-lines are emitted as a two-byte sequence <span class="mono">\n</span> + <span class="mono">\r</span>
+            (line feed + carriage return) to correctly position the VT100 cursor at the start of a new line.
+          </p>
+
+          <h2>// Command Processor — FSM Design</h2>
+          <p>
+            The <strong>command processor</strong> is a finite state machine that parses the incoming
+            byte stream. Command validation follows the spec: a start command is any
+            <span class="mono">'A'</span>/<span class="mono">'a'</span> immediately followed by exactly
+            3 decimal digits — so <span class="mono">"hjhgjga945"</span> is valid, while
+            <span class="mono">"A56k7"</span> and <span class="mono">"a55"</span> are rejected.
+          </p>
+          <div class="code-block">
+<pre><span class="comment">-- VHDL · command processor FSM (skeleton)</span>
+<span class="keyword">type</span> state_t <span class="keyword">is</span> (IDLE, GOT_A, GOT_D1, GOT_D2, RUN, PRINT_READY);
+signal state : state_t;
+
+<span class="keyword">case</span> state <span class="keyword">is</span>
+  <span class="keyword">when</span> IDLE =>
+    <span class="keyword">if</span> rx_data = <span class="string">"A"</span> <span class="keyword">or</span> rx_data = <span class="string">"a"</span> <span class="keyword">then</span>
+      state <= GOT_A;               <span class="comment">-- 'A' seen, expect digit #1</span>
+    <span class="keyword">elsif</span> rx_data = <span class="string">"P"</span> <span class="keyword">or</span> rx_data = <span class="string">"p"</span> <span class="keyword">then</span>
+      <span class="comment">-- latch peak + index → TX</span>
+    <span class="keyword">elsif</span> rx_data = <span class="string">"L"</span> <span class="keyword">or</span> rx_data = <span class="string">"l"</span> <span class="keyword">then</span>
+      <span class="comment">-- latch peak neighbourhood (7 bytes) → TX</span>
+    <span class="keyword">end if</span>;
+  <span class="keyword">when</span> GOT_A => ...                 <span class="comment">-- digit 1 (000–999)</span>
+  <span class="keyword">when</span> GOT_D1 => ...                <span class="comment">-- digit 2</span>
+  <span class="keyword">when</span> GOT_D2 => ...                <span class="comment">-- digit 3 → start data run</span>
+  <span class="keyword">when</span> RUN => ...                   <span class="comment">-- consume N bytes</span>
+  <span class="keyword">when</span> PRINT_READY => ...           <span class="comment">-- wait for P / L</span>
+<span class="keyword">end case</span>;
+</pre>
+          </div>
+          <p>
+            On a valid <span class="mono">aNNN</span>, the FSM transitions to <span class="mono">RUN</span>,
+            clocks exactly <span class="mono">NNN</span> bytes from the data generator (each immediately
+            printed in hex), then settles into <span class="mono">PRINT_READY</span> where
+            <span class="mono">P</span>/<span class="mono">L</span> queries are served.
+          </p>
+
+          <h2>// Data Consumer — Two-Phase Handshake</h2>
+          <p>
+            The data generator supplies a 500-byte sequence one byte at a time under a
+            <strong>two-phase handshake</strong>: the consumer requests a new byte by toggling
+            <span class="mono">req</span>; the generator responds by placing the next byte on the data
+            lines and toggling <span class="mono">data_valid</span>. The data consumer latches the byte
+            on each valid edge, streams it to UART TX for hex display, and simultaneously updates its
+            internal peak tracking:
+          </p>
+          <div class="code-block">
+<pre><span class="comment">-- VHDL · peak tracking (unsigned flavour)</span>
+<span class="keyword">if</span> data_valid'<span class="keyword">event</span> <span class="keyword">then</span>          <span class="comment">-- toggle detected</span>
+  <span class="keyword">if</span> data > peak_value <span class="keyword">then</span>      <span class="comment">-- strict > keeps FIRST peak</span>
+    peak_value <= data;
+    peak_index <= index_cnt;
+  <span class="keyword">end if</span>;
+  <span class="comment">-- shift neighbourhood: b0←b1, b1←b2, b2←peak_prev ...</span>
+  index_cnt <= index_cnt + 1;
+<span class="keyword">end if</span>;
+</pre>
+          </div>
+          <p>
+            Only a <em>strictly greater</em> comparison is used, so the <strong>first</strong>
+            occurrence of a repeated maximum is the one retained — exactly the behaviour the
+            specification requires. A ring of registers keeps the 3 preceding bytes, the peak, and
+            latches the 3 following bytes to serve the <span class="mono">L</span> command.
+          </p>
+
+          <h2>// Signed vs Unsigned Interpretation</h2>
+          <p>
+            The byte's interpretation (which byte "wins" as the peak) is determined by the group
+            number. Two full implementations were synthesised:
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Flavour</th>
+                  <th>Comparison</th>
+                  <th>Range</th>
+                  <th>Key source files</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Unsigned</td>
+                  <td>8-bit unsigned magnitude</td>
+                  <td>0 – 255</td>
+                  <td><span class="mono">dataConsume_synthesised_unsigned.vhd</span></td>
+                </tr>
+                <tr>
+                  <td>Signed</td>
+                  <td>Two's-complement signed</td>
+                  <td>−128 – +127</td>
+                  <td><span class="mono">dataConsume_synthesised_signed.vhd</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Both variants share the same top-level structure (<span class="mono">top.vhd</span>,
+            <span class="mono">cmdProc</span>, <span class="mono">dataGen</span>) and were each
+            synthesised, placed, and routed into a <span class="mono">.bit</span> file for
+            on-board verification.
+          </p>
+
+          <h2>// Verification — Simulation & On-Board</h2>
+          <p>
+            Rapid verification was driven by dedicated testbenches:
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Testbench</th>
+                  <th>Scope</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="mono">tb_UART.vhd</span></td>
+                  <td>UART RX/TX byte-level exchange, baud timing, echo path</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">tb_dataGenConsume_signed/unsigned.vhd</span></td>
+                  <td>Two-phase handshake + peak tracking for the full 500-byte sequence</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">tb_dataConsume_signed/unsigned.vhd</span></td>
+                  <td>Data consumer standalone: peak, index, ±3 neighbourhood registers</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">tb_CmdProcessor_Interim.vhd</span></td>
+                  <td>Command FSM: valid/invalid command strings, P/L after run</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Final validation was performed with the generated bitstream programmed onto the CMOD A7
+            via <strong>Vivado 2022.2 Hardware Manager</strong>, interacting through a PuTTY terminal —
+            covering all commands, various sequence lengths, and edge cases. Full details are in the
+            accompanying report (<span class="mono">digital_report.pdf</span>).
+          </p>
+
+          <h2>// Repository Structure</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Path</th>
+                  <th>Contents</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="mono">peak_detector/top.vhd</span></td>
+                  <td>Top-level module — instantiates UART + command processor + data consumer</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">peak_detector/cmdProcWrapper.vhd</span></td>
+                  <td>Command processor wrapper / FSM interface</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">peak_detector/dataConsumeWrapper.vhd</span></td>
+                  <td>Data consumer wrapper — two-phase handshake interface</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">peak_detector/dataGen.vhd</span></td>
+                  <td>Data generator module declaration</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">peak_detector/common_pack.vhd</span></td>
+                  <td>Shared types / constants — defines the 500-byte sequence</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">peak_detector/UART_RX_CTRL.vhd</span> / <span class="mono">UART_TX_CTRL.vhd</span></td>
+                  <td>RS-232 UART receiver / transmitter modules</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">peak_detector/signed/</span> · <span class="mono">peak_detector/unsigned/</span></td>
+                  <td>Signed / unsigned data consumer + testbenches + synthesised <span class="mono">.bit</span> files</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">peak_detector/Cmod-A7-Master.xdc</span></td>
+                  <td>Pin constraints for the CMOD A7 board</td>
+                </tr>
+                <tr>
+                  <td><span class="mono">digital_report.pdf</span></td>
+                  <td>Full design report: architecture, simulation, verification results</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>// Skills Demonstrated</h2>
+          <div class="card-tech" style="margin-top:12px;">
+            <span>VHDL</span>
+            <span>FPGA (Artix-7)</span>
+            <span>CMOD A7</span>
+            <span>UART / RS-232</span>
+            <span>Finite State Machine</span>
+            <span>Two-Phase Handshake</span>
+            <span>Vivado 2022.2</span>
+            <span>Testbench Simulation</span>
+            <span>Bitstream / .bit</span>
+            <span>XDC Constraints</span>
+            <span>Signed / Unsigned Arithmetic</span>
+            <span>PuTTY / VT100</span>
+            <span>Clock Conditioning (MMCM/PLL)</span>
+            <span>Hardware Verification</span>
+          </div>
+
+          <h2>// Related</h2>
+          <p>
+            → GitHub repository:
+            <a href="https://github.com/Wenbo-Deng/digital-design-peak-detector" target="_blank" rel="noopener">Wenbo-Deng/digital-design-peak-detector</a>
+            (VHDL source, testbenches, bitstreams, report).
+          </p>
+          <p>
+            → Specifications reference:
+            <a href="https://seis.bristol.ac.uk/~sy13201/digital_design/ECAD/A2_index.htm" target="_blank" rel="noopener">ECAD design specifications</a>
+            — the functional requirements this design implements.
+          </p>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+          <a href="projects.html" class="btn btn-outline">← Back to Projects</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "peak_detected" && echo "FIRST_peak_retained" && exit 0</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

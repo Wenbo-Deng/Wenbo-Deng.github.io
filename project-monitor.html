@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="STM32 Portable Power Monitor Project - INA226, I2C, OLED, PCB Design">
+  <title>STM32 Portable Power Monitor | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="projects.html">projects</a> / power-monitor
+        </div>
+        <div class="section-subtitle">// Project 01 · Featured</div>
+        <h1>STM32 Portable Power Monitor</h1>
+        <p style="max-width:700px; color:var(--text-secondary);">
+          STM32 便携式电能监测仪 — 基于 STM32F103 + TI INA226 的产品级硬件项目。
+          完整实现原理图 → PCB → 固件 → 测试全流程。
+        </p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:20px;">
+      <div class="container">
+        <div class="project-meta">
+          <div class="meta-item">
+            <div class="label">Timeline</div>
+            <div class="value">Oct 2024 – Jan 2025</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Role</div>
+            <div class="value">Solo Developer</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Status</div>
+            <div class="value">✓ Complete · Tested</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Cost</div>
+            <div class="value">~¥80 (components)</div>
+          </div>
+        </div>
+
+        <div class="project-detail">
+          <h2>// Overview</h2>
+          <p>
+            An independent, product-grade portable power monitoring terminal measuring
+            <strong>voltage (0–36V), current (0–2A), power, and accumulated energy</strong>
+            with 0.1% design accuracy. Built to close the gap between textbook power
+            electronics theory (SMPS simulation) and real hardware measurement.
+          </p>
+          <p>
+            独立完成的便携式电能监测终端，将大学 SMPS 电源理论落地为真实硬件测量工具。
+          </p>
+
+          <h2>// System Architecture</h2>
+          <div class="code-block">
+<pre><span class="comment">/* System Block Diagram */</span>
+┌──────────────────────────────────────────────────────┐
+│              DUT Power Source (DC 3.3V~36V)           │
+│                        │                              │
+│                        ▼                              │
+│    ┌────────┐    ┌─────────────┐    ┌───────────┐    │
+│    │ OLED   │    │  INA226      │    │  UART     │    │
+│    │ SSD1306│◄──►│  19-bit ADC  │◄──►│  (CH340)  │    │
+│    │  I2C   │    │  I2C 0x40    │    │  PC Log   │    │
+│    └────────┘    └──────┬───────┘    └───────────┘    │
+│                         │                              │
+│                   ┌─────┴──────┐                       │
+│                   │ STM32F103  │                       │
+│                   │  72 MHz    │                       │
+│                   └────────────┘                       │
+└──────────────────────────────────────────────────────┘
+</pre>
+          </div>
+
+          <h2>// Key Technical Decisions</h2>
+
+          <h3 style="font-family:var(--font-mono); color:var(--text-primary);">1. Why INA226 instead of ACS712?</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Approach</th>
+                  <th>Principle</th>
+                  <th>Accuracy</th>
+                  <th>Use Case</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ACS712</td>
+                  <td>Hall effect</td>
+                  <td>±1.5%</td>
+                  <td>Rough high-current sensing</td>
+                </tr>
+                <tr>
+                  <td>Shunt + Op-Amp</td>
+                  <td>Differential amp</td>
+                  <td>Medium</td>
+                  <td>Custom design required</td>
+                </tr>
+                <tr>
+                  <td style="color:var(--accent);"><strong>INA226</strong></td>
+                  <td>Shunt + 19-bit ΔΣ ADC</td>
+                  <td><strong>0.1%</strong></td>
+                  <td>Industry-standard for power monitoring</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            INA226 directly samples bus voltage (VIN+ and VBUS pins) and computes
+            power/energy in hardware — dramatically simplifying firmware.
+            Used in DJI chargers, Anker fast chargers, and server PSUs.
+          </p>
+
+          <h3 style="font-family:var(--font-mono); color:var(--text-primary);">2. Kelvin 4-Wire Sensing</h3>
+          <p>
+            The most important design detail. The shunt resistor's sampling path is routed
+            separately from the main current path, eliminating PCB copper trace resistance errors.
+          </p>
+          <div class="code-block">
+<pre><span class="comment">/* Kelvin connection */</span>
+Main current path : VIN+ ──→ Rshunt ──→ VIN-
+Sampling path     : Kel+ ──→ ADC     ──→ Kel-
+
+<span class="comment">// Separate routing = zero copper trace error in measurement</span>
+</pre>
+          </div>
+
+          <h3 style="font-family:var(--font-mono); color:var(--text-primary);">3. INA226 Calibration</h3>
+          <div class="code-block">
+<pre><span class="keyword">const float</span> current_lsb = MAX_CURRENT / <span class="number">32768.0f</span>;  <span class="comment">// 2.0A / 32768 = 61µA/bit</span>
+<span class="keyword">uint16_t</span> calib = (<span class="keyword">uint16_t</span>)(<span class="number">0.00512f</span> / (current_lsb * RSHUNT));
+<span class="comment">// 0.00512 is INA226's internal calibration constant</span>
+INA226_WriteReg(REG_CALIB, calib);
+</pre>
+          </div>
+
+          <h2>// Firmware Architecture</h2>
+          <div class="code-block">
+<pre><span class="comment">/* HAL-based layered driver design */</span>
+app/
+├── main.c          <span class="comment"># Main logic: sample → refresh UI → UART output</span>
+├── ina226.c/h      <span class="comment"># INA226 driver: registers, calibration, parsing</span>
+├── oled.c/h        <span class="comment"># SSD1306 driver: framebuffer + localized refresh</span>
+├── ui.c/h          <span class="comment"># 4-page UI: voltage/current/power/energy</span>
+└── i2c.c/h         <span class="comment"># HAL I2C wrapper</span>
+</pre>
+          </div>
+
+          <h2>// Measured Results</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Range</th>
+                  <th>Measured Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Voltage</td>
+                  <td>3.3V – 12V (full scale)</td>
+                  <td style="color:var(--accent);">< 0.3%</td>
+                </tr>
+                <tr>
+                  <td>Current</td>
+                  <td>22mA – 100mA</td>
+                  <td style="color:var(--accent);">< 2%</td>
+                </tr>
+                <tr>
+                  <td>Power</td>
+                  <td>Real-time P = V × I</td>
+                  <td style="color:var(--accent);">< 2%</td>
+                </tr>
+                <tr>
+                  <td>Energy Accumulation</td>
+                  <td>10-min continuous</td>
+                  <td style="color:var(--accent);">< 3%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>// Skills Demonstrated</h2>
+          <div class="card-tech" style="margin-top:12px;">
+            <span>STM32 HAL</span>
+            <span>I2C Protocol</span>
+            <span>ADC & Signal Chain</span>
+            <span>OLED UI</span>
+            <span>PCB Layout</span>
+            <span>Kelvin Sensing</span>
+            <span>System Testing</span>
+            <span>BOM & Costing</span>
+          </div>
+
+          <h2>// Related</h2>
+          <p>
+            <a href="blog.html">→ 3 technical articles</a> covering design review,
+            I2C debugging war stories, and the SMPS-to-PCB journey.
+          </p>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+          <a href="projects.html" class="btn btn-outline">← Back to Projects</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ make flash && echo "3.3V detected"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Building a 0.1% accuracy power monitor with INA226 - Technical Blog">
+  <title>用 INA226 做一个 0.1% 精度的电能监测仪 | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / ina226-monitor
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>从硬件工程师视角：用 INA226 做一个 0.1% 精度的电能监测仪</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>Hardware Design</span> · <span>~5 min read</span>
+          </div>
+
+          <blockquote>
+            <p>毕业后我独立完成了一个小型硬件项目——基于 STM32 与 INA226 的便携式电能监测仪。这篇文章复盘选型、设计与实现的全过程。</p>
+          </blockquote>
+
+          <h2>为什么做这个项目</h2>
+          <p>
+            本科期间我做了 SMPS 开关电源设计仿真，但始终缺少"真实硬件测量"的环节。
+            电压到底是多少？电流消耗多大？效率是否真的到了 75%？
+            这些问题让我决定做一个能实时测量电压/电流/功率/电能的小工具。
+          </p>
+
+          <h2>核心选型：为什么是 INA226 而不是 ACS712？</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>方案</th>
+                  <th>原理</th>
+                  <th>精度</th>
+                  <th>适用场景</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ACS712</td>
+                  <td>霍尔效应</td>
+                  <td>较差 (±1.5%)</td>
+                  <td>大电流粗略测量</td>
+                </tr>
+                <tr>
+                  <td>采样电阻 + 运放</td>
+                  <td>差分放大</td>
+                  <td>中等</td>
+                  <td>需要外部设计</td>
+                </tr>
+                <tr>
+                  <td style="color:var(--accent);"><strong>INA226</strong></td>
+                  <td>分流电阻 + 19-bit ADC</td>
+                  <td><strong>0.1%</strong></td>
+                  <td>电源监测标准方案</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            INA226 是 TI 推出的电流/电压/功率监测芯片，采用分流电阻方案，内部集成了 19-bit ΔΣ ADC。
+            关键在于它的 <strong>总线电压采样</strong>（直接接 VIN+ 和 VBUS），通过内部计算寄存器
+            可以直接读出功率和电能，极大简化了固件工作量。
+          </p>
+
+          <h2>硬件设计要点</h2>
+
+          <h3>1. 引脚分配</h3>
+          <ul>
+            <li>I2C1: PB6 (SCL), PB7 (SDA)，挂载 INA226 (0x40) 和 OLED (0x3C)</li>
+            <li>USART1: PA9 (TX)，输出串口数据</li>
+            <li>按键: PA0，切换显示页面</li>
+          </ul>
+
+          <h3>2. 开尔文连接（Kelvin sensing）</h3>
+          <p>这是本项目最重要的一个设计细节。分流电阻 Rshunt 两端如果直接用一根粗线采样，铜箔电阻会引起测量误差。正确做法是：</p>
+          <div class="code-block">
+<pre>主电流路径：VIN+ ──→ Rshunt ──→ VIN-
+采样路径：Kelvin+ ──→ ADC ──→ Kelvin-
+</pre>
+          </div>
+          <p>两路分开走线，采样线不流过主电流，从根本上消除了 PCB 走线电阻误差。</p>
+
+          <h3>3. 固件架构</h3>
+          <div class="code-block">
+<pre>main.c        <span class="comment"># 主逻辑：周期采样 + 刷新UI + 串口输出</span>
+ina226.c/h    <span class="comment"># 芯片驱动：寄存器读写、校准、数据解析</span>
+oled.c/h      <span class="comment"># SSD1306 驱动：缓冲显存 + 局部刷新</span>
+ui.c/h        <span class="comment"># 4页面交互：电压/电流/功率/电能</span>
+</pre>
+          </div>
+
+          <h2>INA226 校准流程（关键代码）</h2>
+          <p>校准的本质是设置电流分辨率 Current_LSB，使其与实际量程匹配：</p>
+          <div class="code-block">
+<pre><span class="keyword">const float</span> current_lsb = MAX_CURRENT / <span class="number">32768.0f</span>;  <span class="comment">// 2.0A / 32768 = 61uA/bit</span>
+<span class="keyword">uint16_t</span> calib = (<span class="keyword">uint16_t</span>)(<span class="number">0.00512f</span> / (current_lsb * RSHUNT));
+<span class="comment">// 0.00512 是 INA226 内部校准常数</span>
+INA226_WriteReg(REG_CALIB, calib);
+</pre>
+          </div>
+          <p>校准完成后，读电流寄存器直接乘以 LSB 就是安培数，读功率寄存器乘以 25×LSB 就是瓦特数。</p>
+
+          <h2>测试结果</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>项目</th>
+                  <th>结果</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>电压精度 (3.3V-12V 全量程)</td><td style="color:var(--accent);">< 0.3%</td></tr>
+                <tr><td>电流精度 (22mA-100mA)</td><td style="color:var(--accent);">< 2%</td></tr>
+                <tr><td>功率计算</td><td style="color:var(--accent);">< 2%</td></tr>
+                <tr><td>电能累计 (10分钟连续)</td><td style="color:var(--accent);">< 3%</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>总结</h2>
+          <p>这个项目让我把大学的理论知识真正落地：</p>
+          <ol>
+            <li>理解了专用电流检测芯片 vs 通用 ADC 的本质区别</li>
+            <li>掌握了开尔文四线测量的工程实践</li>
+            <li>完成了原理图 → PCB → 固件 → 测试的完整闭环</li>
+          </ol>
+          <p>
+            如果对电路设计、嵌入式开发感兴趣，欢迎交流。
+            查看 <a href="project-monitor.html">项目详情页</a> 了解更多。
+          </p>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "Voltage: 5.001V · Error: 0.02%"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

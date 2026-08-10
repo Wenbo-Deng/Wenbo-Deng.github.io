@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ETF Fund Flow Analysis - Retail Investor Money, Correlation Study, Multi-Factor Model">
+  <title>散户是"聪明钱"吗：ETF 资金流与次日收益的 34 天统计验证 | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / etf-fundflow
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>散户是"聪明钱"吗：ETF 资金流与次日收益的 34 天统计验证</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>Quant · Python · Statistics</span> · <span>~6 min read</span>
+          </div>
+
+          <blockquote>
+            <p>"跟着主力资金走"是散户圈最流行的说法。我用 34 个交易日的 ETF 资金流数据，用相关系数和统计显著性检验了这个传言——结论既支持直觉，又提醒我样本量的重要性。</p>
+          </blockquote>
+
+          <h2>动机：把"感觉"变成"证据"</h2>
+          <p>
+            盯盘软件每天都在推"今日主力净流入"，但很少有人问：
+            <em>今天的资金流，对明天的涨跌到底有没有预测力？</em>
+            我用 Python + Pandas 搭建了一个针对半导体设备 ETF（159516）的多因子分析工具，
+            前端是 <strong>技术面 + 资金面加权打分</strong>，但更值钱的是它背后的
+            <strong>相关性验证</strong>——先证明信号存在，再谈用它交易。
+          </p>
+
+          <h2>多因子加权模型</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Factor</th>
+                  <th>Indicator</th>
+                  <th>Weight</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>MA Trend</td>
+                  <td>5/10/20-day moving averages</td>
+                  <td>30%</td>
+                </tr>
+                <tr>
+                  <td style="color:var(--accent);">Fund Flow</td>
+                  <td>主力净流入 (institutional flow)</td>
+                  <td style="color:var(--accent);">35%</td>
+                </tr>
+                <tr>
+                  <td>Bollinger Bands</td>
+                  <td>20-day ±2σ</td>
+                  <td>15%</td>
+                </tr>
+                <tr>
+                  <td>RSI</td>
+                  <td>14-period</td>
+                  <td>10%</td>
+                </tr>
+                <tr>
+                  <td>Sector</td>
+                  <td>ETF fund flow proxy</td>
+                  <td>10%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            资金面权重最高（35%），因为市场共识是"机构资金聪明"。但共识需要数据检验。
+          </p>
+
+          <h2>统计验证：资金流真的能预测次日收益吗？</h2>
+          <p>
+            采集 2026-06-17 至 2026-08-04 共 <strong>34 个交易日</strong>的资金流与行情数据，
+            计算两个相关性：
+          </p>
+          <ul>
+            <li><strong>T 日资金流 vs T+1 日收益率</strong> —— 我们要验证的"预测力"</li>
+            <li><strong>T 日资金流 vs T 日指数涨跌</strong> —— 作为对照组（同向）</li>
+          </ul>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>Interpretation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Correlation (T flow vs T+1 return)</td>
+                  <td style="color:var(--accent);">r = 0.2718</td>
+                  <td>弱正相关</td>
+                </tr>
+                <tr>
+                  <td>p-value (Pearson, n=34)</td>
+                  <td>0.1101</td>
+                  <td>不显著（样本有限）</td>
+                </tr>
+                <tr>
+                  <td>Control: flow vs same-day index</td>
+                  <td>r = −0.7472</td>
+                  <td>强负相关（"反向指标"效应）</td>
+                </tr>
+                <tr>
+                  <td>流入日 → 次日上涨概率</td>
+                  <td>55%</td>
+                  <td>平均 +0.17%</td>
+                </tr>
+                <tr>
+                  <td>流出日 → 次日上涨概率</td>
+                  <td>33%</td>
+                  <td>平均 −2.14%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>关键发现</h3>
+          <p>
+            <span style="color:var(--warning);">① 流入日与流出日的次日上涨概率差 22 个百分点</span>
+            （55% vs 33%）——方向上支持"资金流有参考价值"。
+            <strong>② 但 r=0.27 对应的 p=0.11 > 0.05</strong>——按统计标准这个相关不显著。
+            两者的统一解释是：<strong>样本量（34 天）太小，信号存在但置信区间太宽</strong>。
+          </p>
+          <p>
+            最有意思的是对照组：当日资金流与当日指数 <strong>r = −0.7472 强负相关</strong>——
+            散户资金行为呈明显的<strong>"追涨杀跌"反向特征</strong>：
+            往往在当天大涨后流入、大跌后流出，恰好成了"追高"的注脚。
+          </p>
+
+          <h2>样本量是硬约束</h2>
+          <div class="code-block">
+<pre><span class="comment">// 临界相关系数（α=0.05, 双尾）</span>
+r_crit ≈ 1.96 / sqrt(n - 3)  ≈ 1.96 / sqrt(31) ≈ <span class="number">0.35</span>
+<span class="comment">// 我们的 r=0.27 < 0.35 → 不能拒绝"无相关"原假设</span>
+<span class="comment">// 但方向一致 + 条件概率差 22pp → 值得扩大样本继续验证</span>
+</pre>
+          </div>
+          <p>
+            34 天只是 1.5 个月的行情，横跨了单一行情阶段。真正的验证需要
+            <strong>覆盖牛熊、多个 ETF、几百个交易日</strong>。这也是我目前工具最大的已知局限——
+            工具本身没有错，错的是"用太小的样本下结论"的冲动。
+          </p>
+
+          <h2>从验证到交易信号：加权打分</h2>
+          <p>
+            验证之后，把信号合成为 0–100 的打分：>60 偏多、<40 偏空，并输出次日高低点预测区间。
+          </p>
+          <div class="code-block">
+<pre><span class="keyword">def</span> <span class="function">calculate_score</span>(technical, fund_flow, boll, rsi, sector):
+    score = (
+        W_MA_TREND   * technical +
+        W_FUND_FLOW  * fund_flow +
+        W_BOLL       * boll +
+        W_RSI        * rsi +
+        W_SECTOR     * sector
+    )
+    <span class="keyword">return</span> score  <span class="comment"># 0-100, >60 → buy, <40 → sell</span>
+</pre>
+          </div>
+          <div class="code-block">
+<pre><span class="comment"># T+1 预测输出示例</span>
+ETF: 159516 (半导体设备ETF国泰)
+Date: 2026-08-05
+  MA Trend    : Bullish   (5>10>20 MA)
+  Fund Flow   : +3.2%     (strong inflow)
+  Bollinger   : Mid-band  (neutral)
+  RSI(14)     : 58.3      (neutral-bull)
+  <span class="keyword">SCORE</span>        : <span class="number">72</span>/<span class="number">100</span>  → BUY
+  Predicted   : High 1.128 / Low 1.089
+</pre>
+          </div>
+
+          <h2>经验总结</h2>
+          <ol>
+            <li><strong>先验证信号再谈交易</strong>：相关系数 + p 值把"感觉"变成可辩护的证据</li>
+            <li><strong>对照组救了你</strong>：当日 r=−0.7472 揭穿了"散户聪明钱"的直觉误区</li>
+            <li><strong>p > 0.05 不代表没信号</strong>，也可能只是样本不足——要报告效应方向与置信度</li>
+            <li><strong>量化工具要标明假设边界</strong>：34 天、单一行情、单一 ETF，结论不可外推</li>
+            <li><strong>统计是工程严谨性的一部分</strong>：硬件工程师调信号链路，Quant 调的是数据与假设</li>
+          </ol>
+
+          <h2>附：数据管道骨架</h2>
+          <div class="code-block">
+<pre><span class="comment"># Python · 资金流数据管道</span>
+<span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+
+df = pd.read_csv(<span class="string">"fundflow.csv"</span>, parse_dates=[<span class="string">"date"</span>])
+df[<span class="string">"ret_t1"</span>] = df[<span class="string">"close"</span>].pct_change().shift(-<span class="number">1</span>)   <span class="comment"># 次日收益</span>
+corr = df[[<span class="string">"flow"</span>, <span class="string">"ret_t1"</span>]].corr().iloc[<span class="number">0</span>, <span class="number">1</span>]
+<span class="comment"># scipy.stats.pearsonr 给出 p 值</span>
+</pre>
+          </div>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ python main.py && echo "RSI: 58.3 · Score: 72 · Action: BUY"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

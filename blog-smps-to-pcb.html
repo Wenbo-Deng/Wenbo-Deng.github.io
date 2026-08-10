@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="From Simulink Simulation to Real PCB - Hardware Engineer Journey">
+  <title>从 Simulink 仿真到真实 PCB | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / smps-to-pcb
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>从 Simulink 仿真到真实 PCB：一个硬件工程师的完整落地之旅</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>Design · Power Electronics</span> · <span>~4 min read</span>
+          </div>
+
+          <blockquote>
+            <p>本科时我在 Simulink 里仿真了 SMPS 开关电源，毕业后我用真实 PCB 做了电能监测仪。这篇记录两种"设计"的本质差异。</p>
+          </blockquote>
+
+          <h2>仿真 vs 实物的残酷区别</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>维度</th>
+                  <th>Simulink 仿真</th>
+                  <th>真实 PCB</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>元件</td>
+                  <td>理想模型，无误差</td>
+                  <td>电容有 ESR，电阻有温漂</td>
+                </tr>
+                <tr>
+                  <td>走线</td>
+                  <td>无阻抗概念</td>
+                  <td>铜箔有电阻，过长有互感</td>
+                </tr>
+                <tr>
+                  <td>噪声</td>
+                  <td>无</td>
+                  <td>无处不在</td>
+                </tr>
+                <tr>
+                  <td>调试</td>
+                  <td>F5 运行</td>
+                  <td>逐引脚排查</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>第一次打样的教训</h2>
+
+          <h3>失败经历：回流焊后 OLED 花屏</h3>
+          <p><strong>现象</strong>：板子拿回来，OLED 显示乱码。</p>
+          <p><strong>排查</strong>：</p>
+          <ol>
+            <li>万用表测 3.3V → 正常</li>
+            <li>测 I2C SDA 电压 → 0.6V（异常！正常应被上拉到 3.3V）</li>
+            <li>检查 PCB → <strong>I2C 上拉电阻焊错封装</strong>（0402 焊成了 0603，虚焊）</li>
+          </ol>
+          <p>
+            <strong>教训</strong>：打样后第一件事是测量所有电源轨和关键信号，不要急着烧程序。
+          </p>
+
+          <h3>改进：加测试点</h3>
+          <p>
+            第二版我在关键信号处加了 5 个测试点（TP1-TP5），调试难度直线下降。
+          </p>
+
+          <h2>从"能跑"到"可靠"的三个优化</h2>
+
+          <h3>1. 滤波优化</h3>
+          <ul>
+            <li>INA226 配置 1024 次平均 → 电压波动从 ±50mV 降到 ±1mV</li>
+            <li>电源引脚加 0.1uF+10uF 两级去耦</li>
+          </ul>
+
+          <h3>2. 测量精度优化</h3>
+          <ul>
+            <li>开尔文四线测量：电流路径与采样路径分离</li>
+            <li>校准 INA226：用高精度万用表读真实电压，修正 LSB</li>
+          </ul>
+
+          <h3>3. 用户体验</h3>
+          <ul>
+            <li>增加按键切换 4 个显示页</li>
+            <li>串口输出 CSV 格式，Excel 可直接分析</li>
+          </ul>
+
+          <h2>给应届/转行硬件工程师的 5 条建议</h2>
+          <ol>
+            <li><strong>打样不贵</strong>：嘉立创 5 元打样后，硬件实验成本趋近于零，大胆试错</li>
+            <li><strong>先模块后集成</strong>：先用现成模块验证逻辑，再画 PCB 集成</li>
+            <li><strong>测试点设计</strong>：画 PCB 时预留测试点，等于给自己留后路</li>
+            <li><strong>示波器必备</strong>：二手 ¥1000 以内的就够用，调 I2C/UART 用处极大</li>
+            <li><strong>文档即尊严</strong>：项目文档（设计说明书/测试报告）是面试时区分"做过"与"玩过"的关键</li>
+          </ol>
+
+          <h2>尾声</h2>
+          <p>
+            从 Simulink 的波形到真实的 PCB 铜箔，这个过程让我真正理解了"理论 → 工程"的鸿沟与桥梁。
+            如果你也在补项目、准备面试，欢迎一起交流。
+          </p>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ pcbcheck --testpoints TP1-TP5 && echo "All signals OK"</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
