@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="From ECG to Brain-Computer Interface - Biosignal Acquisition Hardware Design, AD8232 Signal Chain, RLD, Dry vs Wet Electrode, EEG comparison">
+  <title>从 ECG 到脑机接口：一套生物电信号采集链路教会我的硬件设计 | Deng Wenbo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">wenbo@engineer</a>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="resume.html">Resume</a>
+        <a href="blog.html">Blog</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="index.html">~/home</a> / <a href="blog.html">blog</a> / ecg-bci
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <article class="article">
+          <h1>从 ECG 到脑机接口：一套生物电信号采集链路教会我的硬件设计</h1>
+          <div class="article-meta">
+            <span>Deng Wenbo</span> · <span>Biosignal · Hardware · BCI</span> · <span>~8 min read</span>
+          </div>
+
+          <blockquote>
+            <p>我的毕业设计搭了一套 ECG 活动监测系统：电极 → AD8232 模拟前端 → MCP3008 ADC → 树莓派。做完之后我发现，这条信号链和脑机接口（BCI）公司的 EEG 头环、EMG 仿生手在硬件上是<strong>同一套方法论</strong>。这篇文章拆解这套链路，并说清它如何迁移到微伏级的脑电/肌电采集。</p>
+          </blockquote>
+
+          <h2>生物电信号的本质：都是皮肤表面的差分电位</h2>
+          <p>
+            ECG（心电）、EEG（脑电）、EMG（肌电）本质上都是<strong>可兴奋细胞活动产生的离子电流</strong>，
+            通过组织传导到皮肤表面，形成微小的电位差。
+            它们共享同一套采集范式：<strong>电极拾取 → 差分放大 → 滤波去伪迹 → ADC 数字化</strong>。
+            差别只在信号的幅度量级、频率分布和噪声敏感度——而这些差别，恰恰决定了硬件设计的取舍。
+          </p>
+
+          <h2>AD8232 信号链深度拆解</h2>
+          <p>一套可靠的 ECG 模拟前端（AFE）通常包含以下分级，每一级都在解决一个具体的物理问题。</p>
+
+          <div class="code-block">
+<pre><span class="comment">/* 电极 → 模拟前端 → ADC 的完整信号链 */</span>
+Electrodes (3-lead, AQUA-TAC gel)
+   → AD8232 Analog Front-End
+        ├─ Instrumentation Amplifier: 差分放大 + 高共模抑制
+        ├─ RLD (Right-Leg Drive): 抵消共模干扰
+        ├─ High-pass 0.5Hz: 去除基线漂移
+        ├─ Low-pass 40Hz: 去除高频肌电噪声
+        └─ RFI filter: 抑制射频干扰
+   → 1.5V 偏置输出 (VCC/2)
+   → MCP3008 (10-bit @256Hz, SPI)
+</pre>
+          </div>
+
+          <h3>为什么必须是差分放大？</h3>
+          <p>
+            人体是一根巨大的天线，50Hz 市电工频会在全身感应出<strong>共模干扰</strong>——
+            两个电极上同时出现、幅度相近的噪声。
+            仪表放大器（In-Amp）的关键指标是<strong>共模抑制比（CMRR）</strong>：
+            它放大差模信号（心电），同时压制共模噪声。
+            这就是为什么 ECG/EEG 采集几乎从不用单端放大——单端会连噪声一起放大。
+          </p>
+
+          <h3>右腿驱动（RLD）：把共模干扰"顶回去"</h3>
+          <p>
+            仅靠 CMRR 还不够。RLD 的巧妙在于：它把两个输入端检测到的共模电压
+            <strong>反相放大后，通过第三个电极（右腿/参考电极）反馈回人体</strong>。
+            这相当于主动抵消共模干扰，能再提升数十分贝的抑制效果。
+            EEG 采集同样需要 RLD 或等效的"驱动参考"结构——微伏级信号对共模干扰更敏感，
+            RLD 几乎成了高通道数 EEG 前端的标配（如 ADS1299 内置）。
+          </p>
+
+          <h3>两级滤波 + 偏置：为什么输出被抬到 1.5V？</h3>
+          <p>
+            心电有用的频带在 0.05~100Hz（QRS 能量集中在 5~20Hz），因此：
+          </p>
+          <ul>
+            <li><strong>0.5Hz 高通</strong>：去掉呼吸、电极极化导致的慢漂移（基线漂移）</li>
+            <li><strong>40Hz 低通</strong>：去掉肌肉活动产生的高频肌电噪声，同时防止后续采样混叠</li>
+          </ul>
+          <p>
+            AD8232 输出被预偏置到 <span class="mono">VCC/2 = 1.5V</span>，
+            是因为 MCP3008 以 3.3V 为参考时，1.5V 正好落在量程中点——
+            既容纳正摆幅也容纳负摆幅，<strong>最大化 ADC 动态范围</strong>。
+            这也是选择 ECG 5 Click（1.5V 偏置）而非 SparkFun AD8232（0.5V 偏置）的原因：
+            前者更适合特征提取。
+          </p>
+
+          <h2>ECG vs EEG：同一套链路，天壤之别的信号量级</h2>
+          <p>
+            设计脑电采集最难的地方，在于"信号小了两个数量级"。这是理解 BCI 硬件的起点：
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>指标</th>
+                  <th>ECG（心电）</th>
+                  <th>EEG（脑电）</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>信号幅度</td>
+                  <td>0.5 ~ 4 mV</td>
+                  <td>5 ~ 100 µV（小 10~50 倍）</td>
+                </tr>
+                <tr>
+                  <td>频率范围</td>
+                  <td>0.05 ~ 100 Hz</td>
+                  <td>0.5 ~ 40 Hz（δ/θ/α/β 节律）</td>
+                </tr>
+                <tr>
+                  <td>电极阻抗要求</td>
+                  <td>较低（几十 kΩ）</td>
+                  <td>极高（&lt; 5~10 kΩ，否则信号衰减）</td>
+                </tr>
+                <tr>
+                  <td>主要干扰源</td>
+                  <td>肌电、运动伪迹</td>
+                  <td>眨眼（EOG）、肌电、运动、50Hz</td>
+                </tr>
+                <tr>
+                  <td>对噪声的容忍度</td>
+                  <td>相对高</td>
+                  <td>极低（微伏级，需屏蔽/接地/RLD 全套）</td>
+                </tr>
+                <tr>
+                  <td>典型 ADC 位深</td>
+                  <td>12~16 bit</td>
+                  <td>16~24 bit（如 ADS1299）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            我的项目用的 MCP3008 只有 <strong>10-bit</strong>，对 ECG 勉强够用，
+            但对 EEG 完全不够——10-bit 的理论 SNR 仅
+            <span class="mono">6.02N + 1.76 ≈ 61.9 dB</span>，而脑电需要 100dB+ 的动态范围。
+            这正是指出"从 ECG 升级到 EEG 的差距在哪"的关键。
+          </p>
+
+          <h2>湿电极 vs 干电极：脑机交互产品化的核心挑战</h2>
+          <p>
+            我的 ECG 项目用的是 <strong>AQUA-TAC 凝胶电极</strong>（湿电极）——低阻抗、接触稳定，
+            适合长时间监测。但 BrainCo 这类消费级 BCI 产品（如 Focus 头环）用的是
+            <strong>干电极</strong>，这不是为了省事，而是产品形态决定的：
+          </p>
+          <ul>
+            <li><strong>湿电极</strong>：导电凝胶把电极-皮肤阻抗降到几 kΩ，信号好，但需备皮、易干、不舒适</li>
+            <li><strong>干电极</strong>：直接接触皮肤，阻抗高达几百 kΩ~MΩ，但免凝胶、可反复使用、适合可穿戴</li>
+          </ul>
+          <p>
+            干电极的代价是——<strong>前置放大器必须有极高的输入阻抗</strong>（>1GΩ）。
+            否则电极-皮肤的高阻抗会与放大器输入阻抗构成分压，微伏级信号被大幅衰减到测不出来。
+            这正是脑电头环里"缓冲放大器"存在的意义。
+          </p>
+          <div class="code-block">
+<pre><span class="comment">/* 电极-皮肤阻抗对信号的分压模型 */</span>
+V_in = V_bio × Z_amp / (Z_elec_skin + Z_amp)
+
+<span class="comment">// 若 Z_elec_skin = 1MΩ, Z_amp = 1GΩ → 衰减仅 0.1%</span>
+<span class="comment">// 若 Z_elec_skin = 1MΩ, Z_amp = 10MΩ → 衰减高达 ~9%</span>
+<span class="comment">// 高输入阻抗 = 保住微伏级信号不被"吃掉"</span>
+</pre>
+          </div>
+
+          <h2>从 ECG 到 EEG，还差哪几步？</h2>
+          <p>如果把我的 ECG 系统升级成一个可用的 EEG 采集前端，至少要补齐这些：</p>
+          <ol>
+            <li><strong>高增益 + 超低噪声 AFE</strong>：从 AD8232 换成 ADS1299 这类 24-bit 生物电专用前端</li>
+            <li><strong>干电极缓冲</strong>：高输入阻抗 >1GΩ 的前置缓冲承担电极-皮肤阻抗</li>
+            <li><strong>屏蔽与单点接地</strong>：微伏级信号对电源噪声、地环路、线缆极敏感</li>
+            <li><strong>ICA / 小波去伪迹</strong>：眼电（眨眼）、肌电是 EEG 的头号伪迹源</li>
+            <li><strong>低功耗可穿戴设计</strong>：EEG 头环的 mA 级功耗预算，需 AFE + MCU + 蓝牙的协同睡眠调度</li>
+          </ol>
+
+          <h2>采样率失真的教训：硬件声明必须用数据验证</h2>
+          <p>
+            搬出这套链路时，我还踩过一个基础但致命的坑——论文声称 256Hz 采样，
+            但实际只有 ~139Hz。根因是 <span class="mono">time.sleep(0.0039)</span>
+            不精确，加上每次循环内部（读 ADC、append、取时间戳）有不可控开销，
+            导致实际采样间隔被拉长。
+          </p>
+          <div class="code-block">
+<pre><span class="comment"># 修正：deadline 调度，对齐绝对时间轴</span>
+next_sample_time = time.perf_counter()
+sample_interval = 1.0 / FS   <span class="comment"># 256Hz → 3.906ms</span>
+<span class="keyword">while</span> running:
+    adc_value = read_adc()
+    next_sample_time += sample_interval
+    sleep_time = next_sample_time - time.perf_counter()
+    <span class="keyword">if</span> sleep_time > 0:
+        time.sleep(sleep_time)
+    <span class="comment"># 不补偿被抢占的时间，让平均采样率保持稳定</span>
+</pre>
+          </div>
+          <p>
+            验证方式极其简单，却总被忽略：<strong>样本数 ÷ 采集时长 = 真实采样率</strong>。
+            41742 样本 ÷ 300s ≈ 139Hz —— 一行除法就戳穿了 256Hz 的声明。
+            这个习惯在生物电信号采集中尤其重要，因为采样率直接决定滤波器截止频率
+            和时频图（scalogram）的频率轴，一步错步步错。
+          </p>
+
+          <h2>经验总结</h2>
+          <ol>
+            <li><strong>ECG/EEG/EMG 是同一套 AFE 方法论</strong>：差分放大 + RLD + 滤波 + 高动态范围 ADC</li>
+            <li><strong>信号量级决定一切取舍</strong>：从 mV 到 µV，ADC 位深、输入阻抗、屏蔽要求全面升级</li>
+            <li><strong>高输入阻抗是干电极的生命线</strong>：微伏信号经不起电极-皮肤阻抗的分压</li>
+            <li><strong>RLD 与共模抑制是微伏级采集的刚需</strong>：工频干扰无处不在</li>
+            <li><strong>用数据反推验证硬件声明</strong>：一次除法胜过相信所有注释</li>
+          </ol>
+
+          <div style="margin-top:40px; text-align:center;">
+            <a href="blog.html" class="btn btn-outline">← Back to Blog</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="terminal-line">$ echo "CMRR: high" && echo "Z_in: 1GΩ ✓" && echo "signal: µV-ready" && exit 0</div>
+      <p>© 2026 Deng Wenbo · All rights reserved</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
